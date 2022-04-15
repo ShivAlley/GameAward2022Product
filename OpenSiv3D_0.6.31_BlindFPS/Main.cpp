@@ -10,6 +10,7 @@ Vec3 GetDirection(double angle)
 Vec3 GetFocusPosition(const Vec3& eyePosition, double angle)
 {
 	return (eyePosition + GetDirection(angle));
+
 }
 
 template <class Shape>
