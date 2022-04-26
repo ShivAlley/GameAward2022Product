@@ -2,6 +2,7 @@
 //#include <cri_adx2le.h>
 #include "Game.h"
 
+
 Game::Game(const InitData& init) :IScene(init)
 {
 	//Cursor::SetDefaultStyle(CursorStyle::Hidden);
@@ -18,9 +19,12 @@ void Game::update()
 
 	ClearPrint();
 	const double deltaTime = Scene::DeltaTime();
-	const double speed = (deltaTime * 2.0);
+	const double speed = (deltaTime * 2.0 * 10);
 
-
+	if (KeyQ.pressed())
+	{
+		eyePosition.z += speed;
+	}
 
 	if (KeyW.pressed())
 	{
@@ -83,10 +87,38 @@ void Game::update()
 		{
 			enemy->collider.setR(0);
 		}
-		Vec3 temp = enemy->collider.center - camera.getEyePosition();
+		Vec3 front = camera.getFocusPosition() - camera.getEyePosition();
+		Vec3 ToEnemyVec = enemy->collider.center - camera.getEyePosition();
+		double temp = Math::Acos(GetDot(Normalize(front),Normalize(ToEnemyVec)));
+		if (ToDegrees(temp) > 180)
+		{
+			temp *= -1;
+		}
+		Print << U"compas" << Math::ToDegrees(temp);
 
+		double rad = Math::Atan2(ToEnemyVec.z, ToEnemyVec.x);
+		rad -= 180_deg;
+		Print << Math::ToDegrees(rad);
+		
+		DirectX::XMFLOAT3 storeVec3Front = DirectX::XMFLOAT3{ (float)front.x,(float)front.y,(float)front.z };
+		DirectX::XMFLOAT3 storeVec3Toenemy = DirectX::XMFLOAT3{ (float)ToEnemyVec.x,(float)ToEnemyVec.y,(float)ToEnemyVec.z };
 
+		DirectX::XMVECTOR xmFront = DirectX::XMLoadFloat3(&storeVec3Front);
+		DirectX::XMVECTOR xmToEnemy = DirectX::XMLoadFloat3(&storeVec3Toenemy);
+
+		DirectX::XMVECTOR xmResult = DirectX::XMVector3Cross(xmFront, xmToEnemy);
+
+		if (Math::Asin(DirectX::XMVectorGetX(xmResult)) > 0)
+		{
+			Print << U"right";
+		}
+
+		Print << U"xmvecx" << DirectX::XMVectorGetX(xmResult);
 	}
+
+
+	Print << camera.getEyePosition().y;
+	Print << sampleEnemy.collider.center.y;
 
 	s3d::Erase_if(enemys, [](std::shared_ptr<Enemy> enemy){return enemy->collider.r == 0;});
 

@@ -33,7 +33,7 @@ private:
 		//Enemy() = default;
 		virtual ~Enemy() {};
 #if _DEBUG
-		Enemy(char) { collider = Sphere{4}; }
+		Enemy(char) { collider = Sphere{ initpos,4.0 }; }
 #endif // _DEBUG
 		Sphere collider;
 		Vec3 initpos = { 0,2,10 };
@@ -99,6 +99,11 @@ private:
 	{
 		return (eyePosition + GetDirection(angle));
 
+	}
+
+	double GetDot(const Vec3& v1, const Vec3& v2)
+	{
+		return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 	}
 
 };
