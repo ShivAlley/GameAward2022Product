@@ -1,4 +1,6 @@
 ﻿# include <Siv3D.hpp>
+//#include <cri_adx2le.h>
+//#include <cri_le_error.h>
 #include "common.h"
 #include "Title.h"
 #include "Game.h"
@@ -18,6 +20,7 @@ void Main()
 	Window::SetToggleFullscreenEnabled(true);
 #endif // _DEBUG
 
+	//criAtomEx_Initialize(NULL, NULL, 0);
 
 	App manager;
 	manager.add<Title>(GameState::Title);
@@ -27,7 +30,7 @@ void Main()
 
 	manager.init(GameState::Game);
 	while (System::Update())
-	{
+	{	
 		if (not manager.update())
 		{
 			break;
@@ -39,3 +42,4 @@ void Main()
 	}
 
 }
+

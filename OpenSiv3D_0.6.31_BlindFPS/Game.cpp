@@ -1,12 +1,27 @@
-﻿#include "Game.h"
+﻿//#include <cri_le_error.h>
+//#include <cri_adx2le.h>
+#include "Game.h"
 
 Game::Game(const InitData& init) :IScene(init)
 {
-
+	//Cursor::SetDefaultStyle(CursorStyle::Hidden);
 }
 
 void Game::update()
 {
+#if _DEBUG
+	if (KeyU.down())
+	{
+		enemys << std::make_shared<RangeEnemy>('t');
+	}
+#endif
+
+	ClearPrint();
+	const double deltaTime = Scene::DeltaTime();
+	const double speed = (deltaTime * 2.0);
+
+
+
 	if (KeyW.pressed())
 	{
 		eyePosition += (GetDirection(angle) * speed);
@@ -47,9 +62,8 @@ void Game::update()
 			angle -= 360_deg;
 		}
 	}
-	Cursor::SetPos(Scene::Center());
-
-
+	
+	
 	// 位置・注目点情報を更新
 	camera.setView(eyePosition, GetFocusPosition(eyePosition, angle));
 	Print << U"angle: {:.1f}°"_fmt(Math::ToDegrees(angle));
@@ -58,12 +72,38 @@ void Game::update()
 	Print << U"focusPosition: {:.1f}"_fmt(camera.getFocusPosition());
 	Graphics3D::SetCameraTransform(camera);
 
-	Vec3 vecter = camera.getEyePosition() - sampleEnemy.coll.center.xyz();
-	Vec3 normedVec = Normalize(vecter);
+	
 
+	for (auto&& enemy : enemys)
+	{
+		Vec3 vec = camera.getEyePosition() - enemy->collider.center.xyz();
+		Vec3 moveLng = Normalize(vec) * deltaTime;//*velocity
+		enemy->collider.center += moveLng;
+		if (camera.screenToRay(Scene::Center()).intersects(enemy->collider) and MouseL.down())
+		{
+			enemy->collider.setR(0);
+		}
+		Vec3 temp = enemy->collider.center - camera.getEyePosition();
+
+
+	}
+
+	s3d::Erase_if(enemys, [](std::shared_ptr<Enemy> enemy){return enemy->collider.r == 0;});
+
+	
+
+#if true sampleCode
+	Vec3 vecter = camera.getEyePosition() - sampleEnemy.collider.center.xyz();
+	Vec3 normedVec = Normalize(vecter);
 	Vec3 moveLng = normedVec * deltaTime;
 
-	sampleEnemy.coll.center += moveLng;
+	sampleEnemy.collider.center += moveLng;
+	Cursor::SetPos(sceneCenter);
+	if (camera.screenToRay(Scene::Center()).intersects(sampleEnemy.collider) and MouseL.down())
+	{
+		sampleEnemy.collider.setR(0);
+	}
+#endif
 }
 
 void Game::draw()const
@@ -74,16 +114,18 @@ void Game::draw()const
 		// renderTexture を 3D 描画のレンダーターゲットに
 		const ScopedRenderTarget3D target{ renderTexture.clear(backgroundColor) };
 		Plane{ 64 }.draw(uvChecker);
-		auto v = Box{ -8,2,0,4 }.draw(ColorF{ 0.8, 0.6, 0.4 }.removeSRGBCurve());
+		//auto v = Box{ -8,2,0,4 }.draw(ColorF{ 0.8, 0.6, 0.4 }.removeSRGBCurve());
 		//Sphere{ 0,2,0,2 }.draw(ColorF{ 0.4, 0.8, 0.6 }.removeSRGBCurve());
-		Cylinder{ 8, 2, 0, 2, 4 }.draw(ColorF{ 0.6, 0.4, 0.8 }.removeSRGBCurve());
-		Draw(v, camera.screenToRay(Scene::Center()));
-		billboard.draw(camera.billboard(GetFocusPosition(eyePosition, angle), 0.9), uvChecker, Palette::Black);
-		sampleEnemy.coll.draw(Linear::Palette::Darkgreen);
-		if (camera.screenToRay(Scene::Center()).intersects(sampleEnemy.coll) and MouseL.down())
+		//Cylinder{ 8, 2, 0, 2, 4 }.draw(ColorF{ 0.6, 0.4, 0.8 }.removeSRGBCurve());
+		//Draw(v, camera.screenToRay(Scene::Center()));
+		//manequin.draw();
+		//billboard.draw(camera.billboard(GetFocusPosition(eyePosition, angle), 1.5), uvChecker, Palette::Black);
+		sampleEnemy.collider.draw(Linear::Palette::Darkgreen);
+		for (auto& enemy : enemys)
 		{
-			sampleEnemy.coll.scaled(0, 0);
+			enemy->collider.draw();
 		}
+		
 	}
 
 	// 通常のシーン描画
@@ -92,7 +134,8 @@ void Game::draw()const
 		Graphics3D::Flush();
 		renderTexture.resolve();
 		Shader::LinearToScreen(renderTexture);
-		font(U"tes").drawAt(100, 300);
+		//teseff.drawAt(Scene::Center());
+		//font(U"tes").drawAt(100, 300);
 	}
 
 
@@ -102,7 +145,7 @@ void Game::draw()const
 			const ScopedRenderTarget2D target2{ gaussianA1.clear(Palette::Black) };
 			const ScopedRenderStates2D blend2{ BlendState::Additive };
 			//Shader::LinearToScreen(renderTexture);
-			font(U"tes").drawAt(100, 300);
+			//font(U"tes").drawAt(100, 300);
 		}
 
 		// オリジナルサイズのガウスぼかし (A1)
@@ -113,14 +156,14 @@ void Game::draw()const
 		Shader::GaussianBlur(gaussianA4, gaussianB4, gaussianA4);
 		Shader::Downsample(gaussianA4, gaussianA8);
 		Shader::GaussianBlur(gaussianA8, gaussianB8, gaussianA8);
-	}
-
-	if (lightBloom)
-	{
 		const ScopedRenderStates2D blend2{ BlendState::Additive };
 		gaussianA1.resized(sceneSize).draw(ColorF{ 0.1 });
 		gaussianA4.resized(sceneSize).draw(ColorF{ 0.4 });
 		gaussianA8.resized(sceneSize).draw(ColorF{ 0.8 });
 	}
+
+	
+		
+	
 }
 

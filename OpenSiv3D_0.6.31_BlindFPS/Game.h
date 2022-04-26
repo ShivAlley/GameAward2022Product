@@ -25,16 +25,46 @@ public:
 	void update()override;
 	void draw() const override;
 private:
-	
+	VideoTexture teseff{ U"effects/64ed59a0b29891eb.mp4" };
+	Cylinder playercollider;
 	class Enemy
 	{
 	public:
-		Enemy() = default;
-		Enemy(char) { coll = Cylinder{ initpos,2,4 }; }
+		//Enemy() = default;
+		virtual ~Enemy() {};
+#if _DEBUG
+		Enemy(char) { collider = Sphere{4}; }
+#endif // _DEBUG
+		Sphere collider;
 		Vec3 initpos = { 0,2,10 };
-		Cylinder coll{};
-		double speed = 0;
+	private:
+		//最終的にはStatic constで初期化する
+		double velocity;
+		int32 atk;
+		int32 health;
+		int32 atkRange;
 	};
+	class RangeEnemy : public Enemy
+	{
+	public:
+		RangeEnemy() = default;
+		RangeEnemy(char) : Enemy('t') {}
+	private:
+
+	};
+	class MeleeEnemy : public Enemy
+	{
+	public:
+		MeleeEnemy() = default;
+		MeleeEnemy(char) : Enemy('t'){}
+	private:
+
+	};
+	Array<std::shared_ptr<Enemy>> enemys;
+
+
+
+	//Model manequin{ U"model/testmanequin_0001.obj" };
 	const ColorF backgroundColor = ColorF{ 0.4, 0.6, 0.8 }.removeSRGBCurve();
 	const Texture uvChecker{ U"example/texture/uv.png", TextureDesc::MippedSRGB };
 	const MSRenderTexture renderTexture{ Scene::Size(), TextureFormat::R8G8B8A8_Unorm_SRGB, HasDepth::Yes };
@@ -46,20 +76,18 @@ private:
 
 	// ビルボード表示する板
 	const Mesh billboard{ MeshData::Billboard() };
-
+	
 	Enemy sampleEnemy{ 't' };
 
 
 
 	Size sceneSize{ Scene::Size() };
+	Point sceneCenter{ sceneSize / 2 };
 	const RenderTexture gaussianA1{ sceneSize }, gaussianB1{ sceneSize };
 	const RenderTexture gaussianA4{ sceneSize / 4 }, gaussianB4{ sceneSize / 4 };
 	const RenderTexture gaussianA8{ sceneSize / 8 }, gaussianB8{ sceneSize / 8 };
 
-	bool lightBloom = true;
-
-	const double deltaTime = Scene::DeltaTime();
-	const double speed = (deltaTime * 2.0);
+	
 
 	Vec3 GetDirection(double angle)const
 	{
