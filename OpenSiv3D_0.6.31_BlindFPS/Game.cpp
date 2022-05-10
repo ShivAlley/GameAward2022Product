@@ -124,7 +124,7 @@ void Game::update()
 		{
 			angle -= 360_deg;
 		}
-	}
+	
 	timer++;
 	
 	// 位置・注目点情報を更新
@@ -183,7 +183,7 @@ void Game::update()
 		enemy->Move();
 	}
 
-
+	
 
 	s3d::Erase_if(enemys, [](std::shared_ptr<Enemy> enemy) {return enemy->collider.r == 0; });
 
@@ -215,7 +215,7 @@ void Game::update()
 
 		//プレイヤーの当たり判定BOX
 			Box playerbox = { camera.getEyePosition().x,camera.getEyePosition().y,camera.getEyePosition().z,4 };
-			if (timer >1)
+			if (timer >0)
 			{
 				oldeyeposition[0]= eyePosition;
 				
@@ -255,7 +255,7 @@ void Game::update()
 			}
 
 			{
-				const ScopedRenderStates3D rasterizer{ RasterizerState::WireframeCullNone };
+				//const ScopedRenderStates3D rasterizer{ RasterizerState::WireframeCullNone };
 			}
 		
 #endif
@@ -311,7 +311,6 @@ void Game::draw()const
 
 
 
-		//font(U"tes").drawAt(100, 300);
 
 	}
 

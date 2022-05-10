@@ -60,7 +60,7 @@ private:
 		RangeEnemy() = default;
 		RangeEnemy(char) : Enemy('t') {}
 		void Move()override final {
-			Print << U"rangeenemy";
+			s3d::Print << U"rangeenemy";
 		}
 	private:
 
@@ -71,7 +71,7 @@ private:
 		MeleeEnemy() = default;
 		MeleeEnemy(char) : Enemy('t'){}
 		void Move()override final {
-			Print << U"mellee";
+			s3d::Print << U"mellee";
 		}
 	private:
 
