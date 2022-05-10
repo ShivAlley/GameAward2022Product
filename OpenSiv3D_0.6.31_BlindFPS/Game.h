@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include "common.h"
-#include <variant>
-
+#include "3Dpos.h"
 
 
 template <class Shape>
@@ -27,6 +26,15 @@ public:
 private:
 	VideoTexture teseff{ U"effects/64ed59a0b29891eb.mp4" };
 	Cylinder playercollider;
+	Mesh pyramid{ MeshData::Pyramid(3.0, 3.0) };
+	AppObj cri_obj{ 0 };
+	void Cri3dposInitialize();
+	struct PlayerUI
+	{
+		double arrowRadian{ 0_deg };
+		Array<double> damageIndicaterAngle{};
+
+	}playerInterface;
 	class Enemy
 	{
 	public:
@@ -37,6 +45,8 @@ private:
 #endif // _DEBUG
 		Sphere collider;
 		Vec3 initpos = { 0,2,10 };
+		//virtual void Move() = 0;
+		virtual void Move() {}
 	private:
 		//最終的にはStatic constで初期化する
 		double velocity;
@@ -49,6 +59,9 @@ private:
 	public:
 		RangeEnemy() = default;
 		RangeEnemy(char) : Enemy('t') {}
+		void Move()override final {
+			Print << U"rangeenemy";
+		}
 	private:
 
 	};
@@ -57,6 +70,9 @@ private:
 	public:
 		MeleeEnemy() = default;
 		MeleeEnemy(char) : Enemy('t'){}
+		void Move()override final {
+			Print << U"mellee";
+		}
 	private:
 
 	};
