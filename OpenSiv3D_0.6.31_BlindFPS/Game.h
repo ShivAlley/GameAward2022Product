@@ -60,8 +60,8 @@ private:
 	private:
 
 	};
-	Array<std::shared_ptr<Enemy>> enemys;
 
+	Array<std::shared_ptr<Enemy>> enemys;
 
 
 	//Model manequin{ U"model/testmanequin_0001.obj" };
@@ -79,6 +79,12 @@ private:
 	
 	Enemy sampleEnemy{ 't' };
 
+	//プレイヤーの過去位置
+	Vec3 oldeyeposition[1] = {};
+	//何回壁の当たったか
+	int hitnumber = 0;
+	//タイマー
+	int timer=0;
 
 
 	Size sceneSize{ Scene::Size() };
@@ -86,6 +92,7 @@ private:
 	const RenderTexture gaussianA1{ sceneSize }, gaussianB1{ sceneSize };
 	const RenderTexture gaussianA4{ sceneSize / 4 }, gaussianB4{ sceneSize / 4 };
 	const RenderTexture gaussianA8{ sceneSize / 8 }, gaussianB8{ sceneSize / 8 };
+	const Image compass{ U"Image/SampleCompass.png" };
 
 	
 
@@ -107,6 +114,5 @@ private:
 	}
 
 };
-
 
 
