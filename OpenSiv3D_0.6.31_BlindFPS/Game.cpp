@@ -1,9 +1,70 @@
 ﻿#include "Game.h"
-
+#include "App\cri_sound\日本ゲーム大賞のSE_project_acf.h"
+#include "App\cri_sound\WorkUnit\CueSheet_0.h"
 
 Game::Game(const InitData& init) :IScene(init)
 {
 	//Cursor::SetDefaultStyle(CursorStyle::Hidden);
+	Cri3dposInitialize();
+	
+	if (cri_obj.acb_hn == CRI_NULL)
+	{
+		//Window::Resize(100, 100);
+	}
+}
+
+void Game::Cri3dposInitialize()
+{
+	/* リスナーの初期位置を設定(この時点ではまだ実際に反映されていない) */
+	//cri_obj.listener_pos.x = 0.0f;		cri_obj.listener_pos.y = 0.0f;		cri_obj.listener_pos.z = 0.0f;
+	//cri_obj.listener_front.x = 0.0f;	cri_obj.listener_front.y = 0.0f;	cri_obj.listener_front.z = 1.0f;
+	//cri_obj.listener_top.x = 0.0f;		cri_obj.listener_top.y = 1.0f;		cri_obj.listener_top.z = 0.0f;
+
+	/* D-Basの作成（最大ストリーム数はここで決まる） */
+	cri_obj.dbas_id = criAtomDbas_Create(NULL, NULL, 0);
+	/* ACFファイルの読み込みと登録 */
+	int32 calcsize = criAtomEx_CalculateWorkSizeForRegisterAcfFile(NULL, "App/cri_sound/WorkUnit/ADX2_samples.acf");
+	void* space = malloc(calcsize);
+	bool b = criAtomEx_RegisterAcfFile(NULL, "App/cri_sound/WorkUnit/ADX2_samples.acf", &space, calcsize);
+
+	/* DSP設定のアタッチ */  
+	criAtomEx_AttachDspBusSetting(CRI_日本ゲーム大賞のSE_PROJECT_ACF_DSPSETTING_DSPBUSSETTING_0, NULL, 0);
+
+
+	CriAtomExStandardVoicePoolConfig vpool_config;
+	criAtomExVoicePool_SetDefaultConfigForStandardVoicePool(&vpool_config);
+	vpool_config.num_voices = 8;
+	vpool_config.player_config.max_sampling_rate = 48000 * 2;
+	vpool_config.player_config.streaming_flag = CRI_TRUE;
+	cri_obj.voice_pool = criAtomExVoicePool_AllocateStandardVoicePool(&vpool_config, NULL, 0);
+
+	cri_obj.acb_hn = criAtomExAcb_LoadAcbFile(NULL, "App/cri_sound/WorkUnit_日本ゲーム大賞のSE/CueSheet_0.acb", NULL, NULL, NULL, 0);
+
+	/* プレーヤの作成 */
+	cri_obj.player = criAtomExPlayer_Create(NULL, NULL, 0);
+
+	/* 3Dリスナーハンドルと3D音源ハンドルを作成 */
+	cri_obj.listener = criAtomEx3dListener_Create(NULL, NULL, 0);
+	cri_obj.source = criAtomEx3dSource_Create(NULL, NULL, 0);
+
+	/* プレーヤにリスナーと音源のハンドルを登録 */
+	criAtomExPlayer_Set3dListenerHn(cri_obj.player, cri_obj.listener);
+	criAtomExPlayer_Set3dSourceHn(cri_obj.player, cri_obj.source);
+
+	/* リスナーの位置の設定 */
+	criAtomEx3dListener_SetPosition(cri_obj.listener, &(cri_obj.listener_pos));
+
+	/* リスナーの向きの設定 */
+	criAtomEx3dListener_SetOrientation(cri_obj.listener, &(cri_obj.listener_front), &(cri_obj.listener_top));
+
+	/* リスナーのパラメータを実際に反映 */
+	criAtomEx3dListener_Update(cri_obj.listener);
+
+	/* 音源の位置の設定＆反映 */
+	criAtomEx3dSource_SetPosition(cri_obj.source, &(cri_obj.source_pos));
+
+	/* 音源のパラメータを実際に反映 */
+	criAtomEx3dSource_Update(cri_obj.source);
 
 }
 
@@ -14,10 +75,14 @@ void Game::update()
 	{
 		enemys << std::make_shared<RangeEnemy>('t');
 	}
-	
+	if (KeyI.down())
+	{
+		enemys << std::make_shared<MeleeEnemy>('t');
+	}
 #endif
 
 	ClearPrint();
+	
 	const double deltaTime = Scene::DeltaTime();
 	const double speed = (deltaTime * 2.0 * 5);
 
@@ -48,18 +113,12 @@ void Game::update()
 	}
 
 	//if (KeyLeft.pressed())
+	angle += Cursor::DeltaRaw().x * 0.001;
+	if (angle < 0_degF)
 	{
-		angle += Cursor::DeltaRaw().x * 0.001;
-
-		if (angle < 0_deg)
-		{
-			angle += 360_deg;
-		}
+		angle += 360_degF;
 	}
 
-	//if (KeyRight.pressed())
-	{
-		//angle += Cursor::DeltaRaw().x * 0.1;
 
 		if (360_deg < angle)
 		{
@@ -95,32 +154,42 @@ void Game::update()
 			temp *= -1;
 		}
 		s3d::Print << U"compas" << Math::ToDegrees(temp);
-
-		double rad = Math::Atan2(ToEnemyVec.z, ToEnemyVec.x);
-		rad -= 180_deg;
-		Print << Math::ToDegrees(rad);
-		DirectX::XMFLOAT3 storeVec3Front = DirectX::XMFLOAT3{ (float)front.x,(float)front.y,(float)front.z };
-		DirectX::XMFLOAT3 storeVec3Toenemy = DirectX::XMFLOAT3{ (float)ToEnemyVec.x,(float)ToEnemyVec.y,(float)ToEnemyVec.z };
-
-		DirectX::XMVECTOR xmFront = DirectX::XMLoadFloat3(&storeVec3Front);
-		DirectX::XMVECTOR xmToEnemy = DirectX::XMLoadFloat3(&storeVec3Toenemy);
-
-		DirectX::XMVECTOR xmResult = DirectX::XMVector3Cross(xmFront, xmToEnemy);
+		//敵との角度の差
+		double dot = Math::Acos(GetDot(Normalize(front), Normalize(ToEnemyVec)));
+		Print << U"compas" << Math::ToDegrees(dot);
 
 
-		if (Math::Asin(DirectX::XMVectorGetX(xmResult)) > 0)
-		{
-			s3d::Print << U"right";
-		}
+		auto castXMVector = [=](Vec3 src)->DirectX::XMVECTOR {
+			DirectX::XMFLOAT3 temp{
+				static_cast<float>(src.x),
+				static_cast<float>(src.y),
+				static_cast<float>(src.z),
+			};
+			return DirectX::XMLoadFloat3(&temp);
+		};
 
-		s3d::Print << U"xmvecx" << DirectX::XMVectorGetX(xmResult);
+		DirectX::XMVECTOR xmFront = castXMVector(front);
+		DirectX::XMVECTOR xmToEn = castXMVector(ToEnemyVec);
+
+		xmFront = DirectX::XMVector3Normalize(xmFront);
+		xmToEn = DirectX::XMVector3Normalize(xmToEn);
+		DirectX::XMVECTOR xmResult = DirectX::XMVector3Cross(xmFront, xmToEn);
+
+		playerInterface.arrowRadian = DirectX::XMVectorGetY(xmResult);
+
+
+		//正の値であるとき敵の中心は右にある
+		s3d::Print << U"xmvecy" << DirectX::XMVectorGetY(xmResult);
+		enemy->Move();
 	}
 
 
-	s3d::Print << camera.getEyePosition().y;
-	s3d::Print << sampleEnemy.collider.center.y;
 
-	s3d::Erase_if(enemys, [](std::shared_ptr<Enemy> enemy){return enemy->collider.r == 0;});
+	s3d::Erase_if(enemys, [](std::shared_ptr<Enemy> enemy) {return enemy->collider.r == 0; });
+
+
+
+	
 
 #if true sampleCode
 	Vec3 vecter = camera.getEyePosition() - sampleEnemy.collider.center.xyz();
@@ -200,12 +269,12 @@ void Game::draw()const
 		// renderTexture を 3D 描画のレンダーターゲットに
 		const ScopedRenderTarget3D target{ renderTexture.clear(backgroundColor) };
 		Plane{ 64 }.draw(uvChecker);
-		//playerbox = Box{ camera.getEyePosition().x,camera.getEyePosition().y,camera.getEyePosition().z,4 }.draw(ColorF{ 0.8, 0.6, 0.4 }.removeSRGBCurve());
-		//auto v = Box{ -8,2,0,4 }.draw(ColorF{ 0.8, 0.6, 0.4 }.removeSRGBCurve());
-		//Sphere{ 0,2,0,2 }.draw(ColorF{ 0.4, 0.8, 0.6 }.removeSRGBCurve());
-		//Cylinder{ 8, 2, 0, 2, 4 }.draw(ColorF{ 0.6, 0.4, 0.8 }.removeSRGBCurve());
-		//Draw(v, camera.screenToRay(Scene::Center()));
-		//manequin.draw();
+		Line3D ll{ camera.getEyePosition(),sampleEnemy.collider.center };
+		Vec3 norm = Normalize(camera.getEyePosition() - sampleEnemy.collider.center);
+		Ray r{ sampleEnemy.collider.center,  norm };
+		Box box{ 2,2,2,2 };
+		box.draw();
+		
 		//billboard.draw(camera.billboard(GetFocusPosition(eyePosition, angle), 1.5), uvChecker, Palette::Black);
 		sampleEnemy.collider.draw(Linear::Palette::Darkgreen);
 	
@@ -222,10 +291,29 @@ void Game::draw()const
 		Graphics3D::Flush();
 		renderTexture.resolve();
 		Shader::LinearToScreen(renderTexture);
-		//teseff.drawAt(Scene::Center());
-		//font(U"tes").drawAt(100, 300);
+		
+		
 	}
 
+	{
+
+		//通常の2D描画
+		for (auto&& enemy : enemys)
+		{
+			
+			TextureAsset(U"testArrow")
+				.scaled(0.2,0.2)
+				.rotated(playerInterface.arrowRadian)
+				.drawAt(Vec2{ 600,700 });
+			
+		}
+
+
+
+
+		//font(U"tes").drawAt(100, 300);
+
+	}
 
 	{
 		// ガウスぼかし用テクスチャにもう一度シーンを描く
@@ -250,9 +338,9 @@ void Game::draw()const
 		gaussianA8.resized(sceneSize).draw(ColorF{ 0.8 });
 	}
 
-	
-		
-	
+
+
+
 }
 
 
