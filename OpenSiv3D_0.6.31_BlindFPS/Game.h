@@ -108,8 +108,7 @@ private:
 	const RenderTexture gaussianA1{ sceneSize }, gaussianB1{ sceneSize };
 	const RenderTexture gaussianA4{ sceneSize / 4 }, gaussianB4{ sceneSize / 4 };
 	const RenderTexture gaussianA8{ sceneSize / 8 }, gaussianB8{ sceneSize / 8 };
-	const Image compass{ U"Image/SampleCompass.png" };
-
+	const Texture compass{ U"Image/SampleCompass.png" };
 	
 
 	Vec3 GetDirection(double angle)const

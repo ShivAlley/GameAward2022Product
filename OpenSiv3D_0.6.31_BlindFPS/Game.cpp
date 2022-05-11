@@ -257,6 +257,7 @@ void Game::update()
 			{
 				//const ScopedRenderStates3D rasterizer{ RasterizerState::WireframeCullNone };
 			}
+
 		
 #endif
 }
@@ -291,9 +292,8 @@ void Game::draw()const
 		Graphics3D::Flush();
 		renderTexture.resolve();
 		Shader::LinearToScreen(renderTexture);
-		
-		
 	}
+
 
 	{
 
@@ -307,11 +307,11 @@ void Game::draw()const
 				.drawAt(Vec2{ 600,700 });
 			
 		}
-
-
-
-
-
+		//ラジアンから度の変換
+		int anglenomal = ToDegrees(angle);
+		// 画像の (angle, 0) から幅 600, 高さ 50 の長方形部分
+		compass(anglenomal*7+50,0,400,50).draw(600,50);
+		Print << anglenomal;
 	}
 
 	{
