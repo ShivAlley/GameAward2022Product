@@ -310,10 +310,9 @@ void Game::draw()const
 		//ラジアンから度の変換
 		int anglenomal = ToDegrees(angle);
 		// 画像の (angle, 0) から幅 600, 高さ 50 の長方形部分
-		compass(anglenomal*7+50,0,400,50).draw(600,50);
+		compass(anglenomal*5.3+200,0,400,50).draw(800,50);
 		Print << anglenomal;
 	}
-
 	{
 		// ガウスぼかし用テクスチャにもう一度シーンを描く
 		{

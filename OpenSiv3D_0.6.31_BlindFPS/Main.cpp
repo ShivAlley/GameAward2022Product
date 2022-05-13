@@ -54,7 +54,7 @@ void Main()
 #ifdef _DEBUG
 	const Font font{ 50 };
 	Window::SetFullscreen(false);
-	Window::Resize(Size{ 1280,720 });
+	Window::Resize(Size{ 1920,1080 });
 	Window::SetToggleFullscreenEnabled(true);
 #endif // _DEBUG
 	/*CriAtomExConfig criAtomDesc;
