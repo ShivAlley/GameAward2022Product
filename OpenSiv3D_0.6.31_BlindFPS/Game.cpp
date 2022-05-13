@@ -349,7 +349,6 @@ void Game::update()
 
 					
 		
-#endif
 }
 
 void Game::draw()const

@@ -152,7 +152,6 @@ private:
 	//Model manequin{ U"model/testmanequin_0001.obj" };
 	const ColorF backgroundColor = ColorF{ 0.4, 0.6, 0.8 }.removeSRGBCurve();
 	const Texture uvChecker{ U"example/texture/uv.png", TextureDesc::MippedSRGB };
-	const Texture compass{ U"App/Image/SampleCompass.png", TextureDesc::MippedSRGB };
 	const MSRenderTexture renderTexture{ Scene::Size(), TextureFormat::R8G8B8A8_Unorm_SRGB, HasDepth::Yes };
 	
 	//Vec3 eyePosition{ 0, 2, -16 };
