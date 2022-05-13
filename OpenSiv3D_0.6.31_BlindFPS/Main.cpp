@@ -12,10 +12,15 @@
 void TexRegist()
 {
 #ifdef _DEBUG
+	FontAsset::Register(U"udd", 30, FileSystem::GetFolderPath(SpecialFolder::SystemFonts) + U"UDDigiKyokashoN-B.ttc");
+
 	TextureAsset::Register(U"testArrow", U"texture/JamArrow.png");
 	TextureAsset::Register(U"sampleIndicater", U"texture/sampleIndicater.png");
-
+	TextureAsset::Register(U"sampleConpass", U"Image/SampleCompass.png");
 #endif // _DEBUG
+	TextureAsset::Register(U"crossHair", U"Image/crossHair.png");
+	TextureAsset::Register(U"indicater", U"Image/indicater.png");
+
 
 }
 
