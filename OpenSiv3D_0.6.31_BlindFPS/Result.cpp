@@ -7,7 +7,6 @@ Result::Result(const InitData& init)
 
 void Result::update()
 {
-	
 }
 
 void Result::draw()const

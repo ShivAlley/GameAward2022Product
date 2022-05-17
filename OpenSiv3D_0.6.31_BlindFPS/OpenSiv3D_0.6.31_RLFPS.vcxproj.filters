@@ -156,9 +156,6 @@
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="3Dpos.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="App\icon.ico">
@@ -807,9 +804,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Main.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="3Dpos.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

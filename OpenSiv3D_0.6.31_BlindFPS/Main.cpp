@@ -1,6 +1,4 @@
 ﻿#include <Siv3D.hpp>
-#include <cri_adx2le.h>
-#include "3Dpos.h"
 #include "common.h"
 #include "Title.h"
 #include "Game.h"
@@ -11,44 +9,27 @@
 
 void TexRegist()
 {
+	FontAsset::Register(U"meiryo", 30, FileSystem::GetFolderPath(SpecialFolder::SystemFonts) + U"meiryo.ttc");
+	FontAsset::Register(U"meiryob", 50, FileSystem::GetFolderPath(SpecialFolder::SystemFonts) + U"meiryob.ttc");
 #ifdef _DEBUG
-	FontAsset::Register(U"udd", 30, FileSystem::GetFolderPath(SpecialFolder::SystemFonts) + U"UDDigiKyokashoN-B.ttc");
-
 	TextureAsset::Register(U"testArrow", U"texture/JamArrow.png");
 	TextureAsset::Register(U"sampleIndicater", U"texture/sampleIndicater.png");
 	TextureAsset::Register(U"sampleConpass", U"Image/SampleCompass.png");
+	TextureAsset::Register(U"testLidar", U"Image/testLidar.png");
+	TextureAsset::Register(U"indicaterLidar", U"Image/indicater.png");
+	AudioAsset::Register(U"piano",GMInstrument::Piano1,PianoKey::C4,1.0s);
+	AudioAsset::Register(U"piano2",GMInstrument::Piano1,PianoKey::D4,1.0s);
 #endif // _DEBUG
-	TextureAsset::Register(U"crossHair", U"Image/crossHair.png");
+	TextureAsset::Register(U"HELgunIcon", U"Image/HELgunIcon.png");
 	TextureAsset::Register(U"indicater", U"Image/indicater.png");
+	TextureAsset::Register(U"crossHair", U"Image/crossHair.png");
+	TextureAsset::Register(U"navigateArrow", U"Image/navigateArrow.png");
+	TextureAsset::Register(U"HPGaugeFrame", U"Image/HPGaugeFrame.png");
+	TextureAsset::Register(U"HPGauge", U"Image/HPGauge.png");
 
 
 }
 
-void user_error_callback_func(const CriChar8* errid, CriUint32 p1, CriUint32 p2, CriUint32* parray)
-{
-	const CriChar8* errmsg;
-	errmsg = criErr_ConvertIdToMessage(errid, p1, p2);
-	printf("%s\n", errmsg);
-}
-
-void* user_malloc(void* obj, CriUint32 size)
-{
-	void* mem;
-
-	// メモリの確保
-	mem = malloc(size);
-
-	return (mem);
-}
-
-// 独自のメモリ解放関数を用意
-void user_free(void* obj, void* mem)
-{
-	// メモリの解放
-	free(mem);
-
-	return;
-}
 
 void Main()
 {
@@ -72,23 +53,7 @@ void Main()
 	fsDesc.num_loaders = 32;
 	fsDesc.num_binders = 32;
 	fsDesc.max_binds = 32;*/
-	criErr_SetCallback(user_error_callback_func);
-
-	criAtomEx_SetUserAllocator(user_malloc, user_free, NULL);
-
-	CriAtomExConfig_WASAPI lib_config;
-	CriFsConfig fs_config;
-	criAtomEx_SetDefaultConfig_WASAPI(&lib_config);
-	criFs_SetDefaultConfig(&fs_config);
-	lib_config.atom_ex.max_virtual_voices = 32;
-	lib_config.hca_mx.output_sampling_rate = 32000;
-	fs_config.num_loaders = 128;
-	fs_config.num_binders = 128;
-	lib_config.atom_ex.fs_config = &fs_config;
-	criAtomEx_Initialize_WASAPI(&lib_config, NULL, 0);
-
 	
-
 	TexRegist();
 
 
@@ -109,7 +74,6 @@ void Main()
 
 
 	}
-	criAtomEx_Finalize();
 }
 
 
