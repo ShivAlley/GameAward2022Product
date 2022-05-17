@@ -15,11 +15,13 @@ enum class GameState
 	Game,
 	Menu,
 	Result,
+	Option,
 };
 
 struct ShareGameData
 {
 	char dummy;
+	double sensi=0.5;
 };
 
 #ifdef _DEBUG

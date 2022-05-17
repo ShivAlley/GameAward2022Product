@@ -148,7 +148,7 @@ void Game::update()
 	}
 
 	//if (KeyLeft.pressed())
-	angle += Cursor::DeltaRaw().x * 0.001;
+	angle += Cursor::DeltaRaw().x * 0.001 * getData().sensi;
 
 	if (angle < 0_degF)
 	{
@@ -357,6 +357,7 @@ void Game::draw()const
 	{
 		// renderTexture を背景色で塗りつぶし、
 		// renderTexture を 3D 描画のレンダーターゲットに
+		
 		const ScopedRenderTarget3D target{ renderTexture.clear(backgroundColor) };
 		Plane{ 64 }.draw(uvChecker);
 

@@ -13,5 +13,5 @@ void Menu::update()
 
 void Menu::draw() const
 {
-	
+	texture.draw();
 }
