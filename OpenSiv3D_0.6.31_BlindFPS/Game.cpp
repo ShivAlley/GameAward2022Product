@@ -435,6 +435,7 @@ float Game::CalcRadLeftAndRightDetail(Vec3 v1, Vec3 v2)
 	DirectX::XMVECTOR xmResult = DirectX::XMVector3Cross(xmv1, xmv2);
 	return DirectX::XMVectorGetY(xmResult);
 
+
 }
 
 
