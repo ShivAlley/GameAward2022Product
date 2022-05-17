@@ -13,7 +13,7 @@ enum class GameState
 
 struct ShareGameData
 {
-	char dummy;
+	double sensi = 0.5;
 };
 
 #ifdef _DEBUG

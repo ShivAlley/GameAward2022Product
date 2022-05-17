@@ -63,7 +63,7 @@ void Main()
 	manager.add<Menu>(GameState::Menu);
 	manager.add<Result>(GameState::Result);
 
-	manager.init(GameState::Game);
+	manager.init(GameState::Title);
 	while (System::Update())
 	{	
 		if (not manager.update())
