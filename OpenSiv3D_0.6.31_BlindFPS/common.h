@@ -1,13 +1,7 @@
 ﻿#pragma once
 #include <Siv3D.hpp>
-#include <cri_adx2le.h>
 
 
-void user_error_callback_func(const CriChar8* errid, CriUint32 p1, CriUint32 p2, CriUint32* parray);
-
-void* user_malloc(void* obj, CriUint32 size);
-
-void user_free(void* obj, void* mem);
 
 enum class GameState
 {
@@ -15,13 +9,11 @@ enum class GameState
 	Game,
 	Menu,
 	Result,
-	Option,
 };
 
 struct ShareGameData
 {
-	char dummy;
-	double sensi=0.5;
+	double sensi = 0.5;
 };
 
 #ifdef _DEBUG
