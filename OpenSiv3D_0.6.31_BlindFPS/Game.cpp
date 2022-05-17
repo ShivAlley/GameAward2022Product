@@ -1,4 +1,6 @@
 ﻿#include "Game.h"
+#include "App\cri_sound\日本ゲーム大賞のSE_project_acf.h"
+#include "App\cri_sound\WorkUnit\CueSheet_0.h"
 
 Game::Game(const InitData& init) :IScene(init)
 {
@@ -7,17 +9,20 @@ Game::Game(const InitData& init) :IScene(init)
 	{
 		for (int x = 1; x < 2; x++)
 		{
-			boxes << Box{ (x * 4), 2, (z * 4), 4 };
+			boxes << Box{ (x * 3), 2, (z * 3), 4 };
 		}
 	}
 	//Cursor::SetDefaultStyle(CursorStyle::Hidden);
 	//Cri3dposInitialize();
 
-	
+	if (cri_obj.acb_hn == CRI_NULL)
+	{
+		//Window::Resize(100, 100);
+	}
 
 	for (auto st : step(5))
 	{
-		navigatePass << NavigateNode{ Vec3{10 * st,2,0} };
+		navigatePass << NavigateNode{Vec3{10 * st,2,0}};
 	}
 
 	String str
@@ -32,10 +37,64 @@ Game::Game(const InitData& init) :IScene(init)
 		U"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
 	};
 	//logs.at(Logging::DetectEnemy) = str;
-	command[Logging::DetectEnemy] = str;
-	command[Logging::DestroyEnemy] = lpsum;
-	//GlobalAudio::BusSetHighPassFilter(MixBus1,0,1000,0.6,1.0);
+	logs[Logging::DetectEnemy] = str;
+	logs[Logging::destroyEnemy] = lpsum;
 }
+
+void Game::Cri3dposInitialize()
+{
+	/* リスナーの初期位置を設定(この時点ではまだ実際に反映されていない) */
+	//cri_obj.listener_pos.x = 0.0f;		cri_obj.listener_pos.y = 0.0f;		cri_obj.listener_pos.z = 0.0f;
+	//cri_obj.listener_front.x = 0.0f;	cri_obj.listener_front.y = 0.0f;	cri_obj.listener_front.z = 1.0f;
+	//cri_obj.listener_top.x = 0.0f;		cri_obj.listener_top.y = 1.0f;		cri_obj.listener_top.z = 0.0f;
+
+	/* D-Basの作成（最大ストリーム数はここで決まる） */
+	cri_obj.dbas_id = criAtomDbas_Create(NULL, NULL, 0);
+	/* ACFファイルの読み込みと登録 */
+	int32 calcsize = criAtomEx_CalculateWorkSizeForRegisterAcfFile(NULL, "cri_sound/WorkUnit/ADX2_samples.acf");
+	void* space = malloc(calcsize);
+	bool b = criAtomEx_RegisterAcfFile(NULL, "cri_sound/WorkUnit/ADX2_samples.acf", &space, calcsize);
+
+	/* DSP設定のアタッチ */
+	criAtomEx_AttachDspBusSetting(CRI_日本ゲーム大賞のSE_PROJECT_ACF_DSPSETTING_DSPBUSSETTING_0, NULL, 0);
+
+	CriAtomExStandardVoicePoolConfig vpool_config;
+	criAtomExVoicePool_SetDefaultConfigForStandardVoicePool(&vpool_config);
+	vpool_config.num_voices = 8;
+	vpool_config.player_config.max_sampling_rate = 48000 * 2;
+	vpool_config.player_config.streaming_flag = CRI_TRUE;
+	cri_obj.voice_pool = criAtomExVoicePool_AllocateStandardVoicePool(&vpool_config, NULL, 0);
+
+	cri_obj.acb_hn = criAtomExAcb_LoadAcbFile(NULL, "App/cri_sound/WorkUnit_日本ゲーム大賞のSE/CueSheet_0.acb", NULL, NULL, NULL, 0);
+
+	/* プレーヤの作成 */
+	cri_obj.player = criAtomExPlayer_Create(NULL, NULL, 0);
+
+	/* 3Dリスナーハンドルと3D音源ハンドルを作成 */
+	cri_obj.listener = criAtomEx3dListener_Create(NULL, NULL, 0);
+	cri_obj.source = criAtomEx3dSource_Create(NULL, NULL, 0);
+
+	/* プレーヤにリスナーと音源のハンドルを登録 */
+	criAtomExPlayer_Set3dListenerHn(cri_obj.player, cri_obj.listener);
+	criAtomExPlayer_Set3dSourceHn(cri_obj.player, cri_obj.source);
+
+	/* リスナーの位置の設定 */
+	criAtomEx3dListener_SetPosition(cri_obj.listener, &(cri_obj.listener_pos));
+
+	/* リスナーの向きの設定 */
+	criAtomEx3dListener_SetOrientation(cri_obj.listener, &(cri_obj.listener_front), &(cri_obj.listener_top));
+
+	/* リスナーのパラメータを実際に反映 */
+	criAtomEx3dListener_Update(cri_obj.listener);
+
+	/* 音源の位置の設定＆反映 */
+	criAtomEx3dSource_SetPosition(cri_obj.source, &(cri_obj.source_pos));
+
+	/* 音源のパラメータを実際に反映 */
+	criAtomEx3dSource_Update(cri_obj.source);
+}
+
+
 
 void Game::update()
 {
@@ -51,161 +110,144 @@ void Game::update()
 	}
 	if (KeyO.down())
 	{
-		terminal.txtIndexManager.push_back(Logging::DetectEnemy);
+		loggerController.txtIndexManager.push_back(Logging::DetectEnemy);
 	}
 	if (KeyP.down())
 	{
-		terminal.txtIndexManager.push_back(Logging::DestroyEnemy);
+		loggerController.txtIndexManager.push_back(Logging::destroyEnemy);
 	}
-	if (KeyJ.down())
-	{
-		terminal.txtIndexManager.push_back(Logging::Damaged);
-	}
-	command[Logging::Damaged] = U"You look at{:.0f}degrees"_fmt(player.GetRadian());
 #endif
 
 	ClearPrint();
 
 	const double speed = (Scene::DeltaTime() * 2.0 * 5);
 
+	if (KeyQ.pressed())
+	{
+		player.eyePosition.z += speed;
+	}
 
 	if (KeyW.pressed())
 	{
-		player.eyePosition += (GetDirection(player.GetRadian()) * speed);
+		player.eyePosition += (GetDirection(angle) * speed);
 	}
 
 	if (KeyS.pressed())
 	{
-		player.eyePosition += (-GetDirection(player.GetRadian()) * speed);
+		player.eyePosition += (-GetDirection(angle) * speed);
 	}
 
 	if (KeyA.pressed())
 	{
-		player.eyePosition += (GetDirection(player.GetRadian() - 90_deg) * speed);
-
+		player.eyePosition += (GetDirection(angle - 90_deg) * speed);
 	}
 
 	if (KeyD.pressed())
 	{
-		player.eyePosition += (GetDirection(player.GetRadian() + 90_deg) * speed);
+		player.eyePosition += (GetDirection(angle + 90_deg) * speed);
 	}
-
-
-	ControlFirearm();
 
 	//if (KeyLeft.pressed())
-	player.SetRadian(player.GetRadian() + Cursor::DeltaRaw().x * 0.001);
-	//angle += Cursor::DeltaRaw().x * 0.001;
+	angle += Cursor::DeltaRaw().x * 0.001;
 
-	if (player.GetRadian() < 0_degF)
+	if (angle < 0_degF)
 	{
-		player.SetRadian(player.GetRadian() + 360_degF);
+		angle += 360_degF;
 	}
 
-	if (360_deg < player.GetRadian())
+	if (360_deg < angle)
 	{
-		player.SetRadian(player.GetRadian() - 360_degF);
+		angle -= 360_deg;
 	}
+
+	player.AddTimer();
 
 	// 位置・注目点情報を更新
-	camera.setView(player.eyePosition, GetFocusPosition(player.eyePosition, player.GetRadian()));
-	s3d::Print << U"angle: {:.1f}°"_fmt(Math::ToDegrees(player.GetRadian()));
-	s3d::Print << U"direction: {:.2f}"_fmt(GetDirection(player.GetRadian()));
+	camera.setView(player.eyePosition, GetFocusPosition(player.eyePosition, angle));
+	s3d::Print << U"angle: {:.1f}°"_fmt(Math::ToDegrees(angle));
+	s3d::Print << U"direction: {:.2f}"_fmt(GetDirection(angle));
 	s3d::Print << U"eyePositon: {:.1f}"_fmt(camera.getEyePosition());
 	s3d::Print << U"focusPosition: {:.1f}"_fmt(camera.getFocusPosition());
-	Print << U"meiryo" << FontAsset(U"meiryo").height();
+	Print << U"timer" << player.GetTimer();
 	Graphics3D::SetCameraTransform(camera);
-
-	s3d::Print << U"degNorm" << ToDegrees(player.GetRadian()) / 180 - 1.0;
-
-	//HitConfirmPlayerShot();
+	player.SetAngle(Math::ToDegrees(angle));
+	Print << U"playerAngle" << player.GetAngle();
 
 	for (auto&& enemy : enemys)
 	{
-		//HACK:ここらへんの処理のフロー気持ち悪いので改善したい
 		//敵からのRayを生成
-		Vec3 norm = Normalize(camera.getEyePosition() - enemy->GetCollider().center);
-		Ray ray{ enemy->GetCollider().center,norm };
-		enemy->SetDistanceNearestBox(Math::Inf);
-		enemy->SetDistanceToPlayer(ray.intersects(player.collider));
+		Vec3 norm = Normalize(camera.getEyePosition() - enemy->collider.center);
+		Ray ray{ enemy->collider.center,norm };
+		float minDistance = Math::Inf;
 		for (const auto& box : boxes)
 		{
-			if (const Optional<float> dist = ray.intersects(box))
+			if (const Optional<float> distance = ray.intersects(box))
 			{
-				if (*dist < enemy->GetDistanceNearestBox())
+				if (*distance < minDistance)
 				{
-					enemy->SetDistanceNearestBox(dist);
+					minDistance = *distance;
 				}
 			}
 		}
 
-		Vec3 front = camera.getLookAtVector();
-		Vec3 playerLookAtEnemy = enemy->GetCollider().center - camera.getEyePosition();
-
+		Optional<float> playerRayLength = ray.intersects(player.collider);
 		//敵とプレイヤーの距離と敵からの一番近い壁との距離を比較
 		//プレイヤーの方が距離が短ければ気づかれる
-		if (enemy->GetDistanceToPlayer() < enemy->GetDistanceNearestBox())
+		if (playerRayLength < minDistance)
 		{
-			enemy->SetAudioPanRad(CalcRadLeftAndRightDetail(front, playerLookAtEnemy));
 			enemy->foundPlayer();
 		}
-		
 
 		if (enemy->GetIsNotice())
 		{
-			enemy->SetOldPosition(enemy->GetCollider().center);
-			Vec3 vec = camera.getEyePosition() - enemy->GetCollider().center;
-			Vec3 moveLng = Normalize(vec) * Scene::DeltaTime() * enemy->GetVelocity();
-			enemy->collider().center += moveLng;
+			Vec3 vec = camera.getEyePosition() - enemy->collider.center.xyz();
+			Vec3 moveLng = Normalize(vec) * Scene::DeltaTime();//*velocity
+			enemy->collider.center += moveLng;
+			if (camera.screenToRay(Scene::Center()).intersects(enemy->collider) and MouseL.down())
+			{
+				enemy->collider.setR(0);
+			}
+			Vec3 front = camera.getFocusPosition() - camera.getEyePosition();
+			Vec3 ToEnemyVec = enemy->collider.center - camera.getEyePosition();
 			//敵との角度の差
-			double dot = Math::Acos(GetDot(Normalize(front), Normalize(playerLookAtEnemy)));
-			//dotに入っているのはラジアン
-			
+			double dot = Math::Acos(GetDot(Normalize(front), Normalize(ToEnemyVec)));
+			//dotに入っているのはラジアンなので弧度法になおす
+			//このDotはあとで計算に使うのでDegdotに入れる
+			double toDegDot = Math::ToDegrees(dot);
+			Print << U"compas" << Math::ToDegrees(dot);
+
+			auto castXMVector = [=](Vec3 src)->DirectX::XMVECTOR {
+				DirectX::XMFLOAT3 temp{
+					static_cast<float>(src.x),
+					static_cast<float>(src.y),
+					static_cast<float>(src.z),
+				};
+				return DirectX::XMLoadFloat3(&temp);
+			};
+
+			DirectX::XMVECTOR xmFront = castXMVector(front);
+			DirectX::XMVECTOR xmToEn = castXMVector(ToEnemyVec);
+
+			xmFront = DirectX::XMVector3Normalize(xmFront);
+			xmToEn = DirectX::XMVector3Normalize(xmToEn);
+			DirectX::XMVECTOR xmResult = DirectX::XMVector3Cross(xmFront, xmToEn);
+
+
+
+
 			//正の値であるとき敵の中心は右にある
 			//ArcSinでマイナス９０度～９０度の範囲での角度が出るが
 			//あくまで左右判定のみに使用し角度の取り出しには使わない
 			//内積を３６０度系に正規化する
 			//ここでは常に角度をラジアンで扱っている
+			s3d::Print << U"xmvecy" << asinf(DirectX::XMVectorGetY(xmResult));
 			double angDiffRad = dot;
-			//angDiffRad = asinf(DirectX::XMVectorGetY(xmResult)) > 0 ? angDiffRad :  2 * Math::PiF - angDiffRad;
-			angDiffRad = isExistRightside(front, playerLookAtEnemy) ? angDiffRad : 2 * Math::PiF - angDiffRad;
+			angDiffRad = asinf(DirectX::XMVectorGetY(xmResult)) > 0 ? angDiffRad :  2 * Math::PiF - angDiffRad;
 			enemy->SetAngleDiffs(angDiffRad);
-			//s3d::Print << U"angDiffRad" << angDiffRad;
-			//s3d::Print << U"angDiffRadNorm" << ToDegrees(angDiffRad) / 180 - 1.0;
-			s3d::Print << U"angPan" << CalcRadLeftAndRightDetail(front, playerLookAtEnemy);
-
-			
-			
-			//Enemyの種類別の動きはoverrideした派生クラス内の関数に記述する
+			//overrideした派生クラス内の関数に記述する
 			enemy->Move();
-
-			for (const auto& box : boxes)
-			{
-				if (box.intersects(enemy->GetCollider()))
-				{
-					enemy->collider().center = enemy->GetOldPosition();
-				}
-			}
-			//敵に見つかっている時、
-			//遮蔽に隠れて5秒以上経つと敵はプレイヤーを見失う
-			//フラグ管理のため、
-			//::foundPlayer()でnoticeTimerをリセットしている
-			if (enemy->GetDistanceToPlayer() > enemy->GetDistanceNearestBox())
-			{
-				enemy->noticeTimer().start();
-				if (enemy->GetNoticeTimer().elapsed() > 5000ms)
-				{
-					enemy->LostSightOfPlayer();
-				}
-			}
 		}
-
-		
-
 	}
-
-	s3d::Erase_if(enemys, [](std::shared_ptr<Enemy> enemy) {return enemy->GetCollider().r == 0; });
-
 	//ナビゲーションの処理
 	NavigateNode nextDestination = navigatePass.at(player.GetPassedNode());
 	if (player.collider.intersects(nextDestination.GetNode())
@@ -232,98 +274,81 @@ void Game::update()
 			//player.decrementPassedNode();
 			float minDistance = Math::Inf;
 			int32 nearestNodeIndex = 0;//何かが起こってもとりあえず一番初めのノードを指す
-			for (auto&& [i, node] : Indexed(navigatePass))
+			for (auto&& [i,node] : Indexed(navigatePass))
 			{
 				Vec3 distance = camera.getEyePosition() - node.GetNode().center;
-				if (distance.length() < minDistance)
-				{
-					minDistance = distance.length();
-					nearestNodeIndex = i;
-				}
+					if (distance.length() < minDistance)
+					{
+						minDistance = distance.length();
+						nearestNodeIndex = i;
+					}
+				
 			}
 			player.SetPassedNode(nearestNodeIndex);
 		}
 	}
 
 	s3d::Print << U"passedNodeCount" << player.GetPassedNode();
-	//次のナビゲーションノードとカメラの視線ベクトルの内積を使って角度を求め、
-	//外積を使って角度を３６０度系に正規化
-	//常にラジアンで計算している
-	Vec3 naviVec = nextDestination.GetNode().center - camera.getEyePosition();
-	double dot = Math::Acos(GetDot(camera.getLookAtVector(), Normalize(naviVec)));
-	dot = isExistRightside(camera.getLookAtVector(), Normalize(naviVec)) ? dot : 2 * Math::PiF - dot;
-	player.interfaces.arrowRadian = dot;
 
 
-	s3d::Print << camera.screenToRay(Scene::Center());
 
+	s3d::Erase_if(enemys, [](std::shared_ptr<Enemy> enemy) {return enemy->collider.r == 0; });
 	Cursor::SetPos(Scene::Center());
+#if false //sampleCode
+	Vec3 vecter = camera.getEyePosition() - sampleEnemy.collider.center.xyz();
+	Vec3 normedVec = Normalize(vecter);
+	Vec3 moveLng = normedVec * Scene::DeltaTime();
+
+	sampleEnemy.collider.center += moveLng;
+	Cursor::SetPos(sceneCenter);
+	if (camera.screenToRay(Scene::Center()).intersects(sampleEnemy.collider) and MouseL.down())
+	{
+		sampleEnemy.collider.setR(0);
+	}
+
+#endif
 
 	//プレイヤーの当たり判定BOX
 	player.collider.setPos(camera.getEyePosition());
-	
-	player.SetOldEyePosition(player.eyePosition);
+
+	if (player.GetTimer() > 0)
+	{
+		player.SetOldEyePosition(player.eyePosition);
+
+		player.ResetTimer();
+	}
 
 	for (const auto& box : boxes)
 	{
 		const bool intersects = player.collider.intersects(box);
+		box.draw(intersects ? Linear::Palette::Orange : Linear::Palette::White);
 		if (intersects)
 		{
 			player.eyePosition = player.GetOldPosition();
 			if (KeyW.pressed())
 			{
-				player.eyePosition -= (GetDirection(player.GetRadian()) * speed);
-
+				player.eyePosition -= (GetDirection(angle) * speed);
 			}
 
 			if (KeyS.pressed())
 			{
-				player.eyePosition -= (-GetDirection(player.GetRadian()) * speed);
+				player.eyePosition -= (-GetDirection(angle) * speed);
 			}
 
 			if (KeyA.pressed())
 			{
-				player.eyePosition -= (GetDirection(player.GetRadian() - 90_deg) * speed);
+				player.eyePosition -= (GetDirection(angle - 90_deg) * speed);
 			}
 
 			if (KeyD.pressed())
 			{
-				player.eyePosition -= (GetDirection(player.GetRadian() + 90_deg) * speed);
+				player.eyePosition -= (GetDirection(angle + 90_deg) * speed);
 			}
 		}
 	}
-	//player.sensors().at(0).setOrigin(Float3{ player.collider.center });
-	//player.sensors().at(0).setDirection(GetDirection(player.GetRadian() + 45_deg));
-	//player.sensors().at(0).intersects(boxes[0]);
-	SonarAround();
-	
-}
 
-void Game::SonarAround()
-{
-	for (auto&& [i,sensor] : IndexedRef(player.sensors()))
-	{
-		sensor.sonar.setOrigin(Float3{player.collider.center});
-		sensor.sonar.setDirection(GetDirection(player.GetRadian() + 45_deg * i));
-		sensor.distanceToBox = Math::Inf;
-		for (auto& box : boxes)
-		{
-			if (const Optional<float> dist = sensor.sonar.intersects(box))
-			{
-				if (dist < sensor.distanceToBox)
-				{
-					sensor.distanceToBox = dist;
-				}
-			}
-			else
-			{
-				sensor.distanceToBox = none;
-			}
-			s3d::Print << U"sensor" << sensor.sonar.intersects(box);
-
-		}
-	}
-	
+					
+		
 }
 
 void Game::draw()const
@@ -335,9 +360,11 @@ void Game::draw()const
 		const ScopedRenderTarget3D target{ renderTexture.clear(backgroundColor) };
 		Plane{ 64 }.draw(uvChecker);
 
+		//billboard.draw(camera.billboard(GetFocusPosition(eyePosition, angle), 1.5), uvChecker, Palette::Black);
+
 		for (auto& enemy : enemys)
 		{
-			enemy->GetCollider().draw();
+			enemy->collider.draw();
 		}
 		for (auto& box : boxes)
 		{
@@ -357,16 +384,32 @@ void Game::draw()const
 		Shader::LinearToScreen(renderTexture);
 	}
 
-	Draw2D();
-	Draw2DLightBloomed();
-	
+
+	{
+		//通常の2D描画
+		TextureAsset(U"crossHair").drawAt(Scene::Center());
+		DrawTxt();
+		for (const auto& enemy : enemys)
+		{
+			TextureAsset(U"indicater")
+				//.scaled(0.2, 0.2)
+				.rotated(enemy->GetAngleDiffs())
+				.drawAt(Scene::Center());
+				s3d::Print << enemy->GetAngleDiffs();
+		}
+		//ラジアンから度の変換
+		int anglenomal = ToDegrees(angle);
+		// 画像の (angle, 0) から幅 600, 高さ 50 の長方形部分
+		compass(anglenomal*5.3+200,0,400,50).draw(800,50);
+		Print << anglenomal;
+	}
 	{
 		// ガウスぼかし用テクスチャにもう一度シーンを描く
-		// ここで重ねて描画した2Dテクスチャはライトブルーム効果が付く
 		{
 			const ScopedRenderTarget2D target2{ gaussianA1.clear(Palette::Black) };
 			const ScopedRenderStates2D blend2{ BlendState::Additive };
-			Draw2DLightBloomed();
+			//Shader::LinearToScreen(renderTexture);
+			//font(U"tes").drawAt(100, 300);
 		}
 
 		// オリジナルサイズのガウスぼかし (A1)
@@ -378,287 +421,32 @@ void Game::draw()const
 		Shader::Downsample(gaussianA4, gaussianA8);
 		Shader::GaussianBlur(gaussianA8, gaussianB8, gaussianA8);
 		const ScopedRenderStates2D blend2{ BlendState::Additive };
-		gaussianA1.resized(Scene::Size()).draw(ColorF{ 0.1 });
-		gaussianA4.resized(Scene::Size()).draw(ColorF{ 0.4 });
-		gaussianA8.resized(Scene::Size()).draw(ColorF{ 0.8 });
+		gaussianA1.resized(sceneSize).draw(ColorF{ 0.1 });
+		gaussianA4.resized(sceneSize).draw(ColorF{ 0.4 });
+		gaussianA8.resized(sceneSize).draw(ColorF{ 0.8 });
 	}
 }
-
-bool Game::isExistRightside(Vec3 v1, Vec3 v2)
-{
-	auto castXMVector = [=](Vec3 src)->DirectX::XMVECTOR {
-		DirectX::XMFLOAT3 temp{
-			static_cast<float>(src.x),
-			static_cast<float>(src.y),
-			static_cast<float>(src.z),
-		};
-		return DirectX::XMLoadFloat3(&temp);
-	};
-
-	DirectX::XMVECTOR xmv1 = castXMVector(v1);
-	DirectX::XMVECTOR xmv2 = castXMVector(v2);
-
-	xmv1 = DirectX::XMVector3Normalize(xmv1);
-	xmv2 = DirectX::XMVector3Normalize(xmv2);
-	DirectX::XMVECTOR xmResult = DirectX::XMVector3Cross(xmv1, xmv2);
-
-	if (DirectX::XMVectorGetY(xmResult) > 0)
-	{
-		return true;
-	}
-	return false;
-
-	//正の値であるとき敵の中心は右にある
-	//ArcSinでマイナス９０度～９０度の範囲での角度が出るが
-	//あくまで左右判定のみに使用し角度の取り出しには使わない
-	//内積を３６０度系に正規化する
-	//ここでは常に角度をラジアンで扱っている
-	//s3d::Print << U"xmvecy" << asinf(DirectX::XMVectorGetY(xmResult));
-}
-
-float Game::CalcRadLeftAndRightDetail(Vec3 v1, Vec3 v2)
-{
-	auto castXMVector = [=](Vec3 src)->DirectX::XMVECTOR {
-		DirectX::XMFLOAT3 temp{
-			static_cast<float>(src.x),
-			static_cast<float>(src.y),
-			static_cast<float>(src.z),
-		};
-		return DirectX::XMLoadFloat3(&temp);
-	};
-
-	DirectX::XMVECTOR xmv1 = castXMVector(v1);
-	DirectX::XMVECTOR xmv2 = castXMVector(v2);
-
-	xmv1 = DirectX::XMVector3Normalize(xmv1);
-	xmv2 = DirectX::XMVector3Normalize(xmv2);
-	DirectX::XMVECTOR xmResult = DirectX::XMVector3Cross(xmv1, xmv2);
-	return DirectX::XMVectorGetY(xmResult);
-
-}
-
-
-void Game::Draw2D() const
-{
-	//uvChecker.scaled(5,5).drawAt(Scene::Center(),Palette::Black);
-	TextureAsset(U"navigateArrow")
-		.rotated(player.interfaces.arrowRadian)
-		.drawAt(Scene::Center().x, Scene::Height() - 150);
-	TextureAsset(U"HPGaugeFrame").drawAt(Scene::Center().x,200);
-	//現在値/最大値＝割合
-	//(player.GetHealth()/100) * texture2d_desc.width
-	TextureAsset(U"HPGauge")(0,0, (player.GetHealth() / 1000) * 640, 800).drawAt(Scene::Center().x, 200);
-
-	#if true //仮クリアランスソナー
-	TextureAsset(U"testLidar")
-		.drawAt(Scene::Size().x - 256,256);
-	for (const auto& [i, sensor] : Indexed(player.GetSensors()))
-	{
-		if (sensor.distanceToBox.has_value()
-		and sensor.distanceToBox.value() < 30)
-		{
-			
-			TextureAsset(U"indicaterLidar")
-			.scaled(0.5,0.5)
-			.rotated(i * 45_deg)
-			.drawAt(Scene::Size().x - 256,256);
-		}
-	}
-	#endif
-}
-
-void Game::Draw2DLightBloomed() const
-{
-	TextureAsset(U"crossHair").drawAt(Scene::Center());
-	TextureAsset(U"HELgunIcon").drawAt(Scene::Size() * 0.9);
-	FontAsset(U"meiryob")(U"00{} | ∞"_fmt(player.GetMagazine()))
-		.drawAt(Scene::Size().x - 500,Scene::Size().y - 100);
-
-
-
-
-	DrawTxt();
-	for (const auto& enemy : enemys)
-	{
-		if (enemy->GetIsNotice())
-		{
-			TextureAsset(U"indicater")
-				//.scaled(0.2, 0.2)
-				.rotated(enemy->GetAngleDiffs())
-				.drawAt(Scene::Center());
-			s3d::Print << enemy->GetAngleDiffs();
-		}
-	}
-	//ラジアンから度の変換
-	int anglenomal = ToDegrees(player.GetRadian());
-	// 画像の (angle, 0) から幅 600, 高さ 50 の長方形部分
-	compass(anglenomal * 5.3 + 200, 0, 400, 64).draw(800, 50);
-	Print << anglenomal;
-}
-
 
 void Game::DrawTxt()const
 {
-	if (not terminal.txtIndexManager.empty())
+	
+	
+	if (not loggerController.txtIndexManager.empty())
 	{
-		terminal.streamTimer.start();
-		const size_t length = terminal.streamTimer.elapsed() / 20ms;//20ms/a character
-		FontAsset(U"meiryo")(command.at(terminal.txtIndexManager.front())
-				 .substr(0, length))
-			.draw(20, Scene::Height() - FontAsset(U"meiryo").height() * 2);
-		if (length > command.at(terminal.txtIndexManager.front()).length())
-		{
-			logs.emplace_front(command.at(terminal.txtIndexManager.front()));
-			terminal.txtIndexManager.pop_front();
-			terminal.streamTimer.reset();
-		}
-	}
 
-	for (const auto& [index, msg] : Indexed(logs))
-	{
-		int32 proportionalMerginY = -(FontAsset(U"meiryo").height()) * index - (FontAsset(U"meiryo").height() * 3);
-		FontAsset(U"meiryo")(msg)
-			.draw(20,
-			Scene::Height() + proportionalMerginY);
-	}
-	if (logs.size() > Scene::Height() / FontAsset(U"meiryo").height())
-	{
-		logs.pop_back();
-	}
-
-	//for (const auto& [index,msg] : Indexed(logs))
-	//{
-	//	//int32 merginY = -(FontAsset(U"meiryo").height() * 3);
-	//	int32 proportionalMerginY = -(FontAsset(U"meiryo").height()) * index - (FontAsset(U"meiryo").height() * 3);
-	//	FontAsset(U"meiryo")(msg)
-	//		.draw(20,
-	//		Scene::Height() + proportionalMerginY);
-	//}
-}
-
-void Game::HitConfirmPlayerShot()
-{
-	Optional<float> distBox = Math::Inf;
-	Optional<float> distEnemy = Math::Inf;
-	Optional<float> minDistBox = Math::Inf;
-	Optional<float> minDistEnemy = Math::Inf;
-	Optional<size_t> enemyIndex = none;
-	for (const auto& box : boxes)
-	{
-		if (distBox = camera.screenToRay(Scene::Center()).intersects(box))
+		loggerController.streamTimer.start();
+		const size_t length = loggerController.streamTimer.ms() / 20;//20ms/a character
+		font(logs.at(loggerController.txtIndexManager.front())
+				 .substr(0,length))
+				 .draw(20,40);
+		if (length > logs.at(loggerController.txtIndexManager.front()).length())
 		{
-			if (*distBox < minDistBox)
-			{
-				minDistBox = *distBox;
-			}
-		}
-	}
-	for (const auto& [i, enemy] : Indexed(enemys))
-	{
-		if (camera.screenToRay(Scene::Center()).intersects(enemy->GetCollider())
-			and MouseL.down())
-		{
-			distEnemy = camera.screenToRay(Scene::Center()).intersects(enemy->GetCollider());
-			if (*distEnemy < minDistEnemy)
-			{
-				minDistEnemy = *distEnemy;
-				enemyIndex = i;
-			}
-		}
-	}
-	if (*minDistEnemy < *minDistBox)
-	{
-		if (enemyIndex.has_value())
-		{
-			enemys.at(*enemyIndex)->collider().setR(0);
-		}
-	}
-}
-void Game::ControlFirearm()
-{
-	//Rを押したときプレイヤーの現在の弾倉が最大より少なく、
-	//リロード中でなければリロードが開始される
-	if (KeyR.down()
-		and player.GetMagazine() < player.GetMaxMagazine()
-		and not player.GetReloadTimer().isRunning())
-	{
-		player.reloadTimer().start();
-	}
-	//3秒経ったらリロードが完了する
-	if (player.GetReloadTimer().elapsed() > player.GetReloadTime())
-	{
-		player.HaveReloadedGun();
-		player.reloadTimer().reset();
-	}
-	//左クリックしたときプレイヤーが前回の射撃から、
-	//ある程度時間が経過しており、
-	//弾倉が１以上あるときに、
-	//リロード中でいなければ撃てる
-	if (MouseL.down()
-		and not player.GetFireCoolTimer().isRunning()
-		and player.GetMagazine() > 0
-		and not player.reloadTimer().isRunning())
-	{
-		player.Fire();
-		//当たったかどうかの確認をここで行う
-		HitConfirmPlayerShot();
-		player.fireCoolTimer().start();
-		gunShot.playOneShot(MixBus1, 0.5,0);
-	}
-
-	if (player.GetFireCoolTimer().elapsed() > player.GetFireCoolTime())
-	{
-		player.fireCoolTimer().reset();
-	}
-	s3d::Print << camera.screenToRay(Scene::Center()).getDirection();
-}
-
-void Game::RangeEnemy::Move()
-{
-	s3d::Print << U"rangeenemy";
-	s3d::Print << GetDistanceToPlayer();
-	s3d::Print << GetAtkRange();
-	if (GetDistanceToPlayer() < GetAtkRange()
-	and GetDistanceToPlayer() < GetDistanceNearestBox())
-	{
-		//発見されてから一秒間は攻撃されない（納得感のため）
-		//敵の攻撃性はその敵一体と見合ったとき棒立ちで何秒耐えられるかを基準にする（あとまわし
-		atkCoolTimer().start();
-		if (GetAtkCoolTimer().elapsed() > 1s)
-		{
-			
+			loggerController.txtIndexManager.pop_front();
+			loggerController.streamTimer.reset();
 		}
 	}
 	
+	
+
 }
-
-void Game::MeleeEnemy::Move()
-{
-	s3d::Print << U"mellee";
-	s3d::Print << GetDistanceNearestBox();
-	s3d::Print << GetDistanceToPlayer();
-	s3d::Print << GetAtkRange();
-	if (GetDistanceToPlayer() < GetAtkRange()
-	and GetDistanceToPlayer() < GetDistanceNearestBox())
-	{
-		//発見されてから一秒間は攻撃されない（納得感のため）
-		//敵の攻撃性はその敵一体と見合ったとき棒立ちで何秒耐えられるかを基準にする（あとまわし
-		atkCoolTimer().start();
-		if (GetAtkCoolTimer().elapsed() > 1s)
-		{
-
-		}
-	}
-}
-
-void Game::RangeEnemy::PlayNoticeSound()
-{
-	AudioAsset(U"piano").playOneShot(MixBus0,1.0,GetAudioPanRad());
-}
-void Game::MeleeEnemy::PlayNoticeSound()
-{
-	AudioAsset(U"piano2").playOneShot(MixBus0, 1.0, GetAudioPanRad());
-}
-
-
 
