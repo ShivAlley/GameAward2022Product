@@ -3,22 +3,53 @@
 Game::Game(const InitData& init) :IScene(init)
 {
 	//四角生成
-	for (int z = 1; z < 2; z++)
+	for (int z = 0; z < 20; z++)//y on 2d
 	{
-		for (int x = 1; x < 2; x++)
+		for (int x = 0; x < 3; x++)//x on 2d
 		{
-			boxes << Box{ (x * 4), 2, (z * 4), 4 };
+			//boxes << Box{ (x * 4.0), 2, 50 + (z * 4.0), 4.0 };
 		}
 	}
+	terrCSV.load(U"csv/Stage1._コイン.csv");
+	navigateCSV.load(U"csv/testNavigate.csv");
+	//terrCSV.load(U"csv/Stage1._コイン.csv");
+	//terrCSV.load(U"Stage/Stage1._地形.csv");
+	//enemyCSV.load(U"Stage/Stage1._敵.csv");
+	//goal = InitializeGoal(Vec2(13200, 650));
 	//Cursor::SetDefaultStyle(CursorStyle::Hidden);
 	//Cri3dposInitialize();
+TERRAIN_:
+	terrGrid.resize(terrCSV.columns(1), terrCSV.rows());
+	for (auto z : step(terrCSV.rows()))
+	{
+		for (auto x : step(terrCSV.columns(1)))
+		{
+			int tile = GetTile(terrCSV, x, z);
+			terrGrid[z][x] = tile;
+		}
+	}
+NAVIGATE_:
+	navigateGrid.resize(navigateCSV.columns(1), navigateCSV.rows());
+	for (auto z : step(navigateCSV.rows()))
+	{
+		for (auto x : step(navigateCSV.columns(1)))
+		{
+			int tile = GetTile(navigateCSV, x, z);
+			navigateGrid[z][x] = tile;
+		}
+	}
+	//Size terrainSize = { terrCSV.columns(1), terrCSV.rows() };//マップの大きさ｛ｘ、ｙ｝
+	Size terrainSize = { terrGrid.width(),terrGrid.height() };//マップの大きさ｛ｘ、ｙ｝
+
+	for (auto p : step(Size{ terrGrid.width(),terrGrid.height() })) {
+		if (terrGrid[p.y][p.x] == 1)
+			boxes << Box{p.x * 4.0,2,p.y * 4.0,4.0};
+
+	}
+
+	LoadNavigate(6);//内部に無限ループの可能性を含んでいる
 
 	
-
-	for (auto st : step(5))
-	{
-		navigatePass << NavigateNode{ Vec3{10 * st,2,0} };
-	}
 
 	String str
 	{
@@ -64,30 +95,65 @@ void Game::update()
 	command[Logging::Damaged] = U"You look at{:.0f}degrees"_fmt(player.GetRadian());
 #endif
 
+
+
+
+
 	ClearPrint();
 
-	const double speed = (Scene::DeltaTime() * 2.0 * 5);
+	//ポーズ画面への移行
 
+	if (KeyEnter.down())
+	{
+		isPaused = !isPaused;       // 0コンのスタートボタンが押されたらポーズ状態が反転
+		menu = !menu;
+		/*auto m = SimpleGUI::Slider(U"マウス感度{:.2f}"_fmt(getData().sensi), getData().sensi, 0.0, 1.0, Vec2{ 770,400 }, 200, 200);*/
+	}
+	if (SimpleGUI::Button(U"決定", Vec2{ 1100, 600 }))
+	{
+		menu = !menu;
+		isPaused = !isPaused;
+	}
+
+	if (isPaused) return;           // この時点でポーズ中ならリターン
+
+	menu = false;
+	isPaused = false;
+
+
+
+
+	//s3d::Print << navigatePass.size();
+	
+
+	const double speed = (Scene::DeltaTime() * 2.0 * 5);
+	double rate = 1.0;
+	if (KeyA.pressed() || KeyD.pressed()) {
+		if (KeyS.pressed() || KeyW.pressed()) {
+			//斜めの場合は、移動量の倍率係数を０．７１に設定
+			rate = 0.71;
+		}
+	}
 
 	if (KeyW.pressed())
 	{
-		player.eyePosition += (GetDirection(player.GetRadian()) * speed);
+		player.eyePosition += (GetDirection(player.GetRadian()) * speed * rate);
 	}
 
 	if (KeyS.pressed())
 	{
-		player.eyePosition += (-GetDirection(player.GetRadian()) * speed);
+		player.eyePosition += (-GetDirection(player.GetRadian()) * speed * rate);
 	}
 
 	if (KeyA.pressed())
 	{
-		player.eyePosition += (GetDirection(player.GetRadian() - 90_deg) * speed);
+		player.eyePosition += (GetDirection(player.GetRadian() - 90_deg) * speed * rate);
 
 	}
 
 	if (KeyD.pressed())
 	{
-		player.eyePosition += (GetDirection(player.GetRadian() + 90_deg) * speed);
+		player.eyePosition += (GetDirection(player.GetRadian() + 90_deg) * speed * rate);
 	}
 
 
@@ -108,17 +174,17 @@ void Game::update()
 	}
 
 	// 位置・注目点情報を更新
+	//入力検知のあとで更新する必要がある
 	camera.setView(player.eyePosition, GetFocusPosition(player.eyePosition, player.GetRadian()));
 	s3d::Print << U"angle: {:.1f}°"_fmt(Math::ToDegrees(player.GetRadian()));
 	s3d::Print << U"direction: {:.2f}"_fmt(GetDirection(player.GetRadian()));
 	s3d::Print << U"eyePositon: {:.1f}"_fmt(camera.getEyePosition());
 	s3d::Print << U"focusPosition: {:.1f}"_fmt(camera.getFocusPosition());
-	Print << U"meiryo" << FontAsset(U"meiryo").height();
+	//Print << U"meiryo" << FontAsset(U"meiryo").height();
 	Graphics3D::SetCameraTransform(camera);
 
-	s3d::Print << U"degNorm" << ToDegrees(player.GetRadian()) / 180 - 1.0;
+	//s3d::Print << U"degNorm" << ToDegrees(player.GetRadian()) / 180 - 1.0;
 
-	//HitConfirmPlayerShot();
 
 	for (auto&& enemy : enemys)
 	{
@@ -130,11 +196,11 @@ void Game::update()
 		enemy->SetDistanceToPlayer(ray.intersects(player.collider));
 		for (const auto& box : boxes)
 		{
-			if (const Optional<float> dist = ray.intersects(box))
+			if (const std::optional<float>& dist = ray.intersects(box))
 			{
 				if (*dist < enemy->GetDistanceNearestBox())
 				{
-					enemy->SetDistanceNearestBox(dist);
+					enemy->SetDistanceNearestBox(dist.value());
 				}
 			}
 		}
@@ -156,15 +222,15 @@ void Game::update()
 			enemy->SetOldPosition(enemy->GetCollider().center);
 			Vec3 vec = camera.getEyePosition() - enemy->GetCollider().center;
 			Vec3 moveLng = Normalize(vec) * Scene::DeltaTime() * enemy->GetVelocity();
-			enemy->collider().center += moveLng;
+			if (not enemy->GetCollider().intersects(player.collider))
+			{
+				enemy->collider().center += moveLng;
+			}
 			//敵との角度の差
 			double dot = Math::Acos(GetDot(Normalize(front), Normalize(playerLookAtEnemy)));
 			//dotに入っているのはラジアン
 			
-			//正の値であるとき敵の中心は右にある
-			//ArcSinでマイナス９０度～９０度の範囲での角度が出るが
-			//あくまで左右判定のみに使用し角度の取り出しには使わない
-			//内積を３６０度系に正規化する
+		
 			//ここでは常に角度をラジアンで扱っている
 			double angDiffRad = dot;
 			//angDiffRad = asinf(DirectX::XMVectorGetY(xmResult)) > 0 ? angDiffRad :  2 * Math::PiF - angDiffRad;
@@ -177,7 +243,7 @@ void Game::update()
 			
 			
 			//Enemyの種類別の動きはoverrideした派生クラス内の関数に記述する
-			enemy->Move();
+			enemy->Move(player);
 
 			for (const auto& box : boxes)
 			{
@@ -257,6 +323,7 @@ void Game::update()
 
 	s3d::Print << camera.screenToRay(Scene::Center());
 
+	s3d::Print << Scene::Size();
 	Cursor::SetPos(Scene::Center());
 
 	//プレイヤーの当たり判定BOX
@@ -292,11 +359,16 @@ void Game::update()
 			}
 		}
 	}
-	//player.sensors().at(0).setOrigin(Float3{ player.collider.center });
-	//player.sensors().at(0).setDirection(GetDirection(player.GetRadian() + 45_deg));
-	//player.sensors().at(0).intersects(boxes[0]);
 	SonarAround();
-	
+	//0.01秒毎に1ずつ回復
+	//->1秒毎に100回復する
+	if (player.GetRegenerateTimer().elapsed() > 5s
+		and player.GetRegenerateTimer().ms() % 10 == 0)
+	{
+		player.SetHealth(player.GetHealth() + 1);
+		
+	}
+
 }
 
 void Game::SonarAround()
@@ -305,23 +377,19 @@ void Game::SonarAround()
 	{
 		sensor.sonar.setOrigin(Float3{player.collider.center});
 		sensor.sonar.setDirection(GetDirection(player.GetRadian() + 45_deg * i));
-		sensor.distanceToBox = Math::Inf;
+		sensor.distanceToBox = none;
 		for (auto& box : boxes)
 		{
-			if (const Optional<float> dist = sensor.sonar.intersects(box))
+			if (const std::optional<float>& dist = sensor.sonar.intersects(box))
 			{
-				if (dist < sensor.distanceToBox)
+				if (dist < sensor.distanceToBox.value_or(Math::Inf))
 				{
 					sensor.distanceToBox = dist;
 				}
 			}
-			else
-			{
-				sensor.distanceToBox = none;
-			}
-			s3d::Print << U"sensor" << sensor.sonar.intersects(box);
-
+			
 		}
+		s3d::Print << U"sonar  " << sensor.distanceToBox.value_or(9999);
 	}
 	
 }
@@ -438,6 +506,30 @@ float Game::CalcRadLeftAndRightDetail(Vec3 v1, Vec3 v2)
 }
 
 
+void Game::LoadNavigate(int32 maxNode)
+{
+
+	//Size terrainSize = { terrGrid.width(),terrGrid.height() };//マップの大きさ｛ｘ、ｙ｝
+	
+	int32 loadingCurrentNode = 1;
+	while (true)
+	{
+		//無限ループを回して二次元配列の中の数字を一つずつ順番に読み込む
+		for (auto p : step(Size(navigateGrid.width(), navigateGrid.height()))) {
+			if (navigateGrid[p.y][p.x] == loadingCurrentNode)
+				navigatePass << NavigateNode{ Vec3{ p.x * 4.0,2,p.y * 4.0} };
+
+		}
+		//最大数に達したらBreak　ここの最大数はCSV依存なのでプログラムで制御出来ない
+		if (loadingCurrentNode == maxNode)
+		{
+			break;
+		}
+		loadingCurrentNode++;
+	}
+	
+}
+
 void Game::Draw2D() const
 {
 	//uvChecker.scaled(5,5).drawAt(Scene::Center(),Palette::Black);
@@ -447,10 +539,12 @@ void Game::Draw2D() const
 	TextureAsset(U"HPGaugeFrame").drawAt(Scene::Center().x,200);
 	//現在値/最大値＝割合
 	//(player.GetHealth()/100) * texture2d_desc.width
-	TextureAsset(U"HPGauge")(0,0, (player.GetHealth() / 1000) * 640, 800).drawAt(Scene::Center().x, 200);
+	double ratio = static_cast<double>(player.GetHealth()) / 1000;
+	TextureAsset(U"HPGauge")(0,0, ratio * 640, 64).draw(Scene::Center().x - 320, 166);
 
 	#if true //仮クリアランスソナー
 	TextureAsset(U"testLidar")
+		.scaled(0.2,0.2)
 		.drawAt(Scene::Size().x - 256,256);
 	for (const auto& [i, sensor] : Indexed(player.GetSensors()))
 	{
@@ -482,11 +576,21 @@ void Game::Draw2DLightBloomed() const
 	{
 		if (enemy->GetIsNotice())
 		{
-			TextureAsset(U"indicater")
-				//.scaled(0.2, 0.2)
-				.rotated(enemy->GetAngleDiffs())
-				.drawAt(Scene::Center());
-			s3d::Print << enemy->GetAngleDiffs();
+			
+			if (enemy->GetIsFired())
+			{
+				TextureAsset(U"indicater2")
+					.scaled(0.5, 0.5)
+					.rotated(enemy->GetAngleDiffs())
+					.drawAt(Scene::Center(),Palette::Red);
+			}
+			else
+			{
+				TextureAsset(U"indicater2")
+					.scaled(0.5, 0.5)
+					.rotated(enemy->GetAngleDiffs())
+					.drawAt(Scene::Center());
+			}
 		}
 	}
 	//ラジアンから度の変換
@@ -613,42 +717,87 @@ void Game::ControlFirearm()
 	s3d::Print << camera.screenToRay(Scene::Center()).getDirection();
 }
 
-void Game::RangeEnemy::Move()
+void Game::RangeEnemy::Move(Player& player)
 {
 	s3d::Print << U"rangeenemy";
-	s3d::Print << GetDistanceToPlayer();
-	s3d::Print << GetAtkRange();
+	//s3d::Print << GetDistanceToPlayer();
+	if (GetFireIndicater().elapsed() > 2s)
+	{
+		fireIndicater().reset();
+		SetIsFire(false);
+	}
 	if (GetDistanceToPlayer() < GetAtkRange()
 	and GetDistanceToPlayer() < GetDistanceNearestBox())
 	{
 		//発見されてから一秒間は攻撃されない（納得感のため）
-		//敵の攻撃性はその敵一体と見合ったとき棒立ちで何秒耐えられるかを基準にする（あとまわし
-		atkCoolTimer().start();
-		if (GetAtkCoolTimer().elapsed() > 1s)
+		// ただし正確には発見されていてかつ攻撃範囲内かつ遮蔽がない場合から1秒間なので体感は長いはず
+		// このタイマーはLostOfSight()でリセットされる
+		//敵の攻撃性はその敵一体と見合ったとき棒立ちで何秒耐えられるかを基準にする
+		//複数体に囲まれることを考慮すると１０秒以上か？要検討
+		foundAtkCoolTimer().start();
+		if (GetFoundAtkCoolTimer().elapsed() > 1s)
 		{
+		//millisecond/percent = 期待値
+		//この場合の期待値は1秒間に1回80ダメージ、10秒で800、13秒で1040（死ぬ）
+		//プレイヤーは自動回復するのでゆっくり進めばそうそう死なないだろうという想定
+			atkInterval().start();
+			if (GetAtkInterval().elapsed() > 500ms
+			and RandomBool(0.5))
+			{
+				player.SetHealth(player.GetHealth() - GetAtk());
+				player.regenerateTimer().restart();
+				fireIndicater().start();
+				SetIsFire(true);
+			}
 			
 		}
 	}
+	if (GetAtkInterval().elapsed() > 500ms)
+	{
+		atkInterval().reset();
+	}
+	
 	
 }
 
-void Game::MeleeEnemy::Move()
+void Game::MeleeEnemy::Move(Player& player)
 {
 	s3d::Print << U"mellee";
-	s3d::Print << GetDistanceNearestBox();
-	s3d::Print << GetDistanceToPlayer();
-	s3d::Print << GetAtkRange();
+	//s3d::Print << GetDistanceNearestBox();
+	//s3d::Print << GetDistanceToPlayer();
+	if (GetFireIndicater().elapsed() > 2s)
+	{
+		fireIndicater().reset();
+		SetIsFire(false);
+	}
 	if (GetDistanceToPlayer() < GetAtkRange()
 	and GetDistanceToPlayer() < GetDistanceNearestBox())
 	{
 		//発見されてから一秒間は攻撃されない（納得感のため）
-		//敵の攻撃性はその敵一体と見合ったとき棒立ちで何秒耐えられるかを基準にする（あとまわし
-		atkCoolTimer().start();
-		if (GetAtkCoolTimer().elapsed() > 1s)
+		// ただし正確には発見されていてかつ攻撃範囲内かつ遮蔽がない場合から1秒間なので体感は長いはず
+		// このタイマーはLostOfSight()でリセットされる
+		//敵の攻撃性はその敵一体と見合ったとき棒立ちで何秒耐えられるかを基準にする
+		//近接攻撃する敵は命中率を考慮せず攻撃力も高めがよいだろう
+		//一撃で3割ほど減らしてみる　これを10秒間に3回ぐらい振るとTTKは10秒よりやや長くなる
+		foundAtkCoolTimer().start();
+		if (GetFoundAtkCoolTimer().elapsed() > 1s)
 		{
-
+			atkInterval().start();
+			if (GetAtkInterval().elapsed() > 2000ms)
+			{
+				player.SetHealth(player.GetHealth() - GetAtk());
+				player.regenerateTimer().restart();
+				fireIndicater().start();
+				SetIsFire(true);
+			}
+			
 		}
 	}
+	if (GetAtkInterval().elapsed() > 2000ms)
+	{
+		atkInterval().reset();
+	}
+	
 }
 
 void Game::RangeEnemy::PlayNoticeSound()

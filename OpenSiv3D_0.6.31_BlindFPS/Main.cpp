@@ -22,6 +22,7 @@ void TexRegist()
 #endif // _DEBUG
 	TextureAsset::Register(U"HELgunIcon", U"Image/HELgunIcon.png");
 	TextureAsset::Register(U"indicater", U"Image/indicater.png");
+	TextureAsset::Register(U"indicater2", U"Image/indicater2.png");
 	TextureAsset::Register(U"crossHair", U"Image/crossHair.png");
 	TextureAsset::Register(U"navigateArrow", U"Image/navigateArrow.png");
 	TextureAsset::Register(U"HPGaugeFrame", U"Image/HPGaugeFrame.png");
@@ -33,15 +34,18 @@ void TexRegist()
 
 void Main()
 {
-	Window::SetFullscreen(true);
+	Scene::Resize(Size{ 1920,1080 });
+	Window::Resize(Size{ 1920,1080 });
+	Scene::SetResizeMode(ResizeMode::Keep);
 	Window::SetTitle(U"BlindFPS");
-	Scene::SetResizeMode(ResizeMode::Actual);
+	Window::SetFullscreen(true);
+	//Window::ResizeVirtual(Size{1920,1080});
 
 #ifdef _DEBUG
 	const Font font{ 50 };
 	Window::SetFullscreen(false);
-	Window::Resize(Size{ 1920,1080 });
 	Window::SetToggleFullscreenEnabled(true);
+
 #endif // _DEBUG
 	/*CriAtomExConfig criAtomDesc;
 	CriFsConfig fsDesc;

@@ -30,7 +30,7 @@ private:
 	Audio gunShot{GMInstrument::Gunshot,PianoKey::C4,1.0s};
 #endif // _DEBUG
 
-	
+	void LoadNavigate(int32 maxNode);
 	void Draw2D()const;
 	void Draw2DLightBloomed()const;
 	void DrawTxt()const;
@@ -39,6 +39,8 @@ private:
 	bool isExistRightside(Vec3 v1,Vec3 v2);
 	float CalcRadLeftAndRightDetail(Vec3 v1,Vec3 v2);
 	void SonarAround();
+	bool menu = false;
+	bool isPaused = false;
 	enum class Logging
 	{
 		DetectEnemy = 0,
@@ -63,7 +65,7 @@ private:
 	struct ClearanceSonar
 	{
 		Ray sonar;
-		Optional<float> distanceToBox;
+		std::optional<float> distanceToBox;
 	};
 
 	class Player
@@ -74,7 +76,8 @@ private:
 		void SetOldEyePosition(const Vec3& pos) { oldEyePosition = pos; }
 		const Vec3& GetOldPosition()const { return oldEyePosition; }
 		PlayerUI interfaces;
-		Vec3 eyePosition{ 0,2,0 };
+		//プレイヤーの初期位置　配置する壁が長さ４の正方形のとき6,6だとスポーンした時に埋まらない（Tiledで1,1を空白になっていることが条件
+		Vec3 eyePosition{ 6,2,6 };
 		void SetRadian(double ang) { angle = ang; }
 		const double& GetRadian()const { return angle; }
 		void incrementPassedNode(){++passedNode;}
@@ -104,7 +107,7 @@ private:
 
 		int32 magazine = 8;
 		int32 health = 1000;
-		Stopwatch m_regenerateTimer{ StartImmediately::Yes };
+		Stopwatch m_regenerateTimer{ StartImmediately::No };
 		Stopwatch m_reloadTimer{ StartImmediately::No };
 		Stopwatch m_fireCoolTimer{ StartImmediately::No };
 		double angle = 0_deg;
@@ -132,10 +135,11 @@ private:
 		Vec3 initpos = { 0,2,50 };
 #endif // _DEBUG
 		//Sphere collider;
-		virtual void Move() = 0;
+		virtual void Move(Player& player) = 0;
 		virtual void PlayNoticeSound() = 0;
 		virtual const double GetVelocity()const = 0;
 		virtual const int32 GetAtkRange()const = 0;
+		virtual const int32 GetAtk()const = 0;
 		void foundPlayer() {
 		//isNoticeがトグルするときだけ音を鳴らす
 			if (isNotice == false)
@@ -146,52 +150,62 @@ private:
 			noticeTimer().reset();
 		}
 		void LostSightOfPlayer(){
-		atkCoolTimer().reset();
+		foundAtkCoolTimer().reset();
 		isNotice = false;}
-		const bool& GetIsNotice()const { return isNotice; }
-		const double& GetAngleDiffs()const{return angleDiffs;}
+		const bool GetIsNotice()const { return isNotice; }
+		const bool GetIsFired()const { return isFired; }
+		void SetIsFire(bool b) { isFired = b; }
+		const double GetAngleDiffs()const{return angleDiffs;}
 		void SetAngleDiffs(double angle){angleDiffs = angle;}
 		const double GetAudioPanRad()const{return audioPanRad;}
 		void SetAudioPanRad(double angle) {audioPanRad = angle;}
-		const Optional<float>& GetDistanceToPlayer()const {return distanceToPlayer;}
-		void SetDistanceToPlayer(Optional<float> dist){distanceToPlayer = dist;}
-		const Optional<float>& GetDistanceNearestBox()const {return distanceNearestBox;}
-		void SetDistanceNearestBox(Optional<float> dist){distanceNearestBox = dist;}
+		const std::optional<float>& GetDistanceToPlayer()const {return distanceToPlayer;}
+		void SetDistanceToPlayer(const std::optional<float>& dist){distanceToPlayer = dist;}
+		const std::optional<float>& GetDistanceNearestBox()const {return distanceNearestBox;}
+		void SetDistanceNearestBox(const std::optional<float>& dist){distanceNearestBox = dist;}
 		const Vec3& GetOldPosition()const{return oldPosition;}
 		void SetOldPosition(const Vec3& pos){oldPosition = pos;}
 		Sphere& collider(){return m_collider; }
 		const Sphere& GetCollider()const {return m_collider;}
 		Stopwatch& noticeTimer(){return m_noticeTimer;}
 		const Stopwatch& GetNoticeTimer() const{return m_noticeTimer;}
-		Stopwatch& atkCoolTimer(){return m_atkCoolTimer;}
-		const Stopwatch& GetAtkCoolTimer()const{return m_atkCoolTimer;}
+		Stopwatch& foundAtkCoolTimer(){return m_foundAtkCoolTimer;}
+		const Stopwatch& GetFoundAtkCoolTimer()const{return m_foundAtkCoolTimer;}
+		Stopwatch& atkInterval(){return m_atkInterval;}
+		const Stopwatch& GetAtkInterval()const{return m_atkInterval;}
+		Stopwatch& fireIndicater(){return m_fireIndicater;}
+		const Stopwatch& GetFireIndicater()const{return m_fireIndicater;}
 	private:
 		
-		static constexpr int32 atk = DEV_ONLY_MAGIC_NUM;
 		static constexpr int32 health = DEV_ONLY_MAGIC_NUM;
 		static constexpr int32 radius = 2;
 		bool isNotice = false;
+		bool isFired = false;
 		double angleDiffs = 0_deg;
 		double audioPanRad = 0_deg;
-		Optional<float> distanceToPlayer = 0;
-		Optional<float> distanceNearestBox = Math::Inf;
+		std::optional<float> distanceToPlayer = 0;
+		std::optional<float> distanceNearestBox = Math::Inf;
 		Vec3 oldPosition{};
 		Sphere m_collider;
 		Stopwatch m_noticeTimer{StartImmediately::No};
-		Stopwatch m_atkCoolTimer{StartImmediately::No};
+		Stopwatch m_foundAtkCoolTimer{StartImmediately::No};
+		Stopwatch m_atkInterval{StartImmediately::No};
+		Stopwatch m_fireIndicater{StartImmediately::No};
 	};
 	class RangeEnemy : public Enemy
 	{
 	public:
 		RangeEnemy() = default;
 		RangeEnemy(char) : Enemy('t') {}
-		void Move()override;
+		void Move(Player& player)override;
 		void PlayNoticeSound()override;
 		const double GetVelocity()const override { return velocity; }
 		const int32 GetAtkRange()const override { return atkRange; }
+		const int32 GetAtk()const override { return atk; }
 	private:
 		static constexpr double velocity = 3;
 		static constexpr int32 atkRange = 8;
+		static constexpr int32 atk = 80;
 
 	};
 	class MeleeEnemy : public Enemy
@@ -199,14 +213,16 @@ private:
 	public:
 		MeleeEnemy() = default;
 		MeleeEnemy(char) : Enemy('t') {}
-		void Move()override;
+		void Move(Player& player)override;
 		void PlayNoticeSound()override;
 		const double GetVelocity()const override { return velocity; }
 		const int32 GetAtkRange()const override { return atkRange; }
+		const int32 GetAtk()const override { return atk; }
 
 	private:
 		static constexpr double velocity = 5;
 		static constexpr int32 atkRange = 3;
+		static constexpr int32 atk = 300;
 	};
 
 	Array<std::shared_ptr<Enemy>> enemys;
@@ -233,13 +249,19 @@ private:
 	
 	//Vec3 eyePosition{ 0, 2, -16 };
 	//double angle = 0_deg;
-	BasicCamera3D camera{ renderTexture.size(), 30_deg, Vec3{ 0, 16, -32 }, GetFocusPosition({0,2,-16}, 0_deg),Vec3{ 0, 1, 0 } ,0.2};
+	double fov = 90_deg;
+	BasicCamera3D camera{ renderTexture.size(), fov, Vec3{ 0, 16, -32 }, GetFocusPosition({0,2,-16}, 0_deg),Vec3{ 0, 1, 0 } ,0.2};
 
 	// ビルボード表示する板
 	const Mesh billboard{ MeshData::Billboard() };
 	
 
-	
+	CSV terrCSV;
+	CSV enemyCSV;
+	CSV navigateCSV;
+	Grid<int8> terrGrid;
+	Grid<int8> enemyGrid;
+	Grid<int8> navigateGrid;
 
 	Array<Box> boxes;
 	
@@ -266,6 +288,11 @@ private:
 	double GetDot(const Vec3& v1, const Vec3& v2)
 	{
 		return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+	}
+
+	int GetTile(const CSV& gMap, const int x, const int y)
+	{
+		return Parse<int>(gMap[y][x]);
 	}
 
 };
