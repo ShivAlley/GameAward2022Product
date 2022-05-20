@@ -22,11 +22,16 @@ void TexRegist()
 #endif // _DEBUG
 	TextureAsset::Register(U"HELgunIcon", U"Image/HELgunIcon.png");
 	TextureAsset::Register(U"indicater", U"Image/indicater.png");
-	TextureAsset::Register(U"indicater2", U"Image/indicater2.png");
+	//TextureAsset::Register(U"indicater2", U"Image/indicater2.png");
 	TextureAsset::Register(U"crossHair", U"Image/crossHair.png");
 	TextureAsset::Register(U"navigateArrow", U"Image/navigateArrow.png");
 	TextureAsset::Register(U"HPGaugeFrame", U"Image/HPGaugeFrame.png");
 	TextureAsset::Register(U"HPGauge", U"Image/HPGauge.png");
+	TextureAsset::Register(U"lidar", U"Image/lidar.png");
+	TextureAsset::Register(U"radar", U"Image/radar.png");
+	TextureAsset::Register(U"radarCenter", U"Image/radarCenter.png");
+	TextureAsset::Register(U"description", U"Image/description.png");
+	TextureAsset::Register(U"tutorial", U"Image/tutorial.png");
 
 
 }
@@ -39,6 +44,7 @@ void Main()
 	Scene::SetResizeMode(ResizeMode::Keep);
 	Window::SetTitle(U"BlindFPS");
 	Window::SetFullscreen(true);
+	System::SetTerminationTriggers(UserAction::NoAction);
 	//Window::ResizeVirtual(Size{1920,1080});
 
 #ifdef _DEBUG

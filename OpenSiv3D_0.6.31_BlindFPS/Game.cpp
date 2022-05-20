@@ -12,6 +12,7 @@ Game::Game(const InitData& init) :IScene(init)
 	}
 	terrCSV.load(U"csv/Stage1._コイン.csv");
 	navigateCSV.load(U"csv/testNavigate.csv");
+	enemyCSV.load(U"csv/testNavigate.csv");
 	//terrCSV.load(U"csv/Stage1._コイン.csv");
 	//terrCSV.load(U"Stage/Stage1._地形.csv");
 	//enemyCSV.load(U"Stage/Stage1._敵.csv");
@@ -28,6 +29,14 @@ TERRAIN_:
 			terrGrid[z][x] = tile;
 		}
 	}
+	//Size terrainSize = { terrCSV.columns(1), terrCSV.rows() };//マップの大きさ｛ｘ、ｙ｝
+	Size terrainSize = { terrGrid.width(),terrGrid.height() };//マップの大きさ｛ｘ、ｙ｝
+
+	for (auto p : step(Size{ terrGrid.width(),terrGrid.height() })) {
+		if (terrGrid[p.y][p.x] == 1)
+			boxes << Box{p.x * 4.0,2,p.y * 4.0,4.0};
+
+	}
 NAVIGATE_:
 	navigateGrid.resize(navigateCSV.columns(1), navigateCSV.rows());
 	for (auto z : step(navigateCSV.rows()))
@@ -38,12 +47,21 @@ NAVIGATE_:
 			navigateGrid[z][x] = tile;
 		}
 	}
-	//Size terrainSize = { terrCSV.columns(1), terrCSV.rows() };//マップの大きさ｛ｘ、ｙ｝
-	Size terrainSize = { terrGrid.width(),terrGrid.height() };//マップの大きさ｛ｘ、ｙ｝
-
-	for (auto p : step(Size{ terrGrid.width(),terrGrid.height() })) {
-		if (terrGrid[p.y][p.x] == 1)
-			boxes << Box{p.x * 4.0,2,p.y * 4.0,4.0};
+ENEMY_:
+	enemyGrid.resize(enemyCSV.columns(1),enemyCSV.rows());
+	for (auto z : step(enemyCSV.rows()))
+	{
+		for (auto x : step(enemyCSV.columns(1)))
+		{
+			int tile = GetTile(enemyCSV, x, z);
+			enemyGrid[z][x] = tile;
+		}
+	}
+	for (auto p : step(Size{ enemyGrid.width(),enemyGrid.height() })) {
+		if (enemyGrid[p.y][p.x] == 1)
+			enemys << std::make_shared<RangeEnemy>(Vec3{ p.x * 4.0,2,p.y * 4.0 });
+		if (enemyGrid[p.y][p.x] == 2)
+			enemys << std::make_shared<MeleeEnemy>(Vec3{ p.x * 4.0,2,p.y * 4.0 });
 
 	}
 
@@ -92,6 +110,10 @@ void Game::update()
 	{
 		terminal.txtIndexManager.push_back(Logging::Damaged);
 	}
+	if (KeyK.down())
+	{
+		System::Exit();
+	}
 	command[Logging::Damaged] = U"You look at{:.0f}degrees"_fmt(player.GetRadian());
 #endif
 
@@ -103,11 +125,11 @@ void Game::update()
 
 	//ポーズ画面への移行
 
-	if (KeyEnter.down())
+	if (KeyEscape.down())
 	{
-		isPaused = !isPaused;       // 0コンのスタートボタンが押されたらポーズ状態が反転
+		isPaused = !isPaused;       // ESCが押されたらポーズ状態が反転
 		menu = !menu;
-		/*auto m = SimpleGUI::Slider(U"マウス感度{:.2f}"_fmt(getData().sensi), getData().sensi, 0.0, 1.0, Vec2{ 770,400 }, 200, 200);*/
+		
 	}
 	if (SimpleGUI::Button(U"決定", Vec2{ 1100, 600 }))
 	{
@@ -115,14 +137,22 @@ void Game::update()
 		isPaused = !isPaused;
 	}
 
-	if (isPaused) return;           // この時点でポーズ中ならリターン
-
+	if (isPaused)
+	{
+		//SimpleGUI::Slider(U"マウス感度{:.2f}"_fmt(getData().sensi), getData().sensi, 0.0, 1.0, Vec2{ 770,400 }, 200, 200);
+		//if (SimpleGUI::Button(U"決定", Vec2{ 1100, 600 }))
+		{
+			//menu = !menu;
+			//isPaused = !isPaused;
+		}
+		return;           // この時点でポーズ中ならリターン
+	}
 	menu = false;
 	isPaused = false;
 
 
 
-
+	player.SetOldEyePosition(player.eyePosition);
 	//s3d::Print << navigatePass.size();
 	
 
@@ -134,30 +164,37 @@ void Game::update()
 			rate = 0.71;
 		}
 	}
-
-	if (KeyW.pressed())
+	if (player.GetHealth() > 0)
 	{
-		player.eyePosition += (GetDirection(player.GetRadian()) * speed * rate);
-	}
+		if (KeyW.pressed())
+		{
+			player.eyePosition += (GetDirection(player.GetRadian()) * speed * rate);
+		}
 
-	if (KeyS.pressed())
+		if (KeyS.pressed())
+		{
+			player.eyePosition += (-GetDirection(player.GetRadian()) * speed * rate);
+		}
+
+		if (KeyA.pressed())
+		{
+			player.eyePosition += (GetDirection(player.GetRadian() - 90_deg) * speed * rate);
+
+		}
+
+		if (KeyD.pressed())
+		{
+			player.eyePosition += (GetDirection(player.GetRadian() + 90_deg) * speed * rate);
+		}
+
+
+		ControlFirearm();
+
+	}
+	else
 	{
-		player.eyePosition += (-GetDirection(player.GetRadian()) * speed * rate);
+		changeScene(GameState::Title);
 	}
-
-	if (KeyA.pressed())
-	{
-		player.eyePosition += (GetDirection(player.GetRadian() - 90_deg) * speed * rate);
-
-	}
-
-	if (KeyD.pressed())
-	{
-		player.eyePosition += (GetDirection(player.GetRadian() + 90_deg) * speed * rate);
-	}
-
-
-	ControlFirearm();
 
 	//if (KeyLeft.pressed())
 	player.SetRadian(player.GetRadian() + Cursor::DeltaRaw().x * 0.001);
@@ -219,6 +256,7 @@ void Game::update()
 
 		if (enemy->GetIsNotice())
 		{
+			
 			enemy->SetOldPosition(enemy->GetCollider().center);
 			Vec3 vec = camera.getEyePosition() - enemy->GetCollider().center;
 			Vec3 moveLng = Normalize(vec) * Scene::DeltaTime() * enemy->GetVelocity();
@@ -264,6 +302,7 @@ void Game::update()
 					enemy->LostSightOfPlayer();
 				}
 			}
+			
 		}
 
 		
@@ -329,7 +368,7 @@ void Game::update()
 	//プレイヤーの当たり判定BOX
 	player.collider.setPos(camera.getEyePosition());
 	
-	player.SetOldEyePosition(player.eyePosition);
+	
 
 	for (const auto& box : boxes)
 	{
@@ -337,6 +376,7 @@ void Game::update()
 		if (intersects)
 		{
 			player.eyePosition = player.GetOldPosition();
+			/*player.eyePosition = player.GetOldPosition();
 			if (KeyW.pressed())
 			{
 				player.eyePosition -= (GetDirection(player.GetRadian()) * speed);
@@ -356,7 +396,7 @@ void Game::update()
 			if (KeyD.pressed())
 			{
 				player.eyePosition -= (GetDirection(player.GetRadian() + 90_deg) * speed);
-			}
+			}*/
 		}
 	}
 	SonarAround();
@@ -427,6 +467,17 @@ void Game::draw()const
 
 	Draw2D();
 	Draw2DLightBloomed();
+	if (isPaused)
+	{
+		Rect{Scene::Size()}.draw(ColorF{0,0,0,0.5});
+		SimpleGUI::Slider(U"マウス感度{:.2f}"_fmt(getData().sensi), getData().sensi, 0.0, 5.0, Vec2{ 770,100 }, 200, 200);
+		TextureAsset(U"description")
+			.scaled(0.2,0.2)
+			.drawAt(Scene::Center());
+
+		//SimpleGUI::Button(U"決定", Vec2{ 1100, 600 });
+		return;//本来ここでReturnすべきでないがライトブルームを消すためにリターンする
+	}
 	
 	{
 		// ガウスぼかし用テクスチャにもう一度シーンを描く
@@ -542,23 +593,48 @@ void Game::Draw2D() const
 	double ratio = static_cast<double>(player.GetHealth()) / 1000;
 	TextureAsset(U"HPGauge")(0,0, ratio * 640, 64).draw(Scene::Center().x - 320, 166);
 
-	#if true //仮クリアランスソナー
-	TextureAsset(U"testLidar")
+	TextureAsset(U"radar")
 		.scaled(0.2,0.2)
-		.drawAt(Scene::Size().x - 256,256);
+		.drawAt(Scene::Size().x - 300,300);
+		TextureAsset(U"radarCenter")
+		.scaled(0.15,0.15)
+		.drawAt(Scene::Size().x - 300,300,Palette::Orangered);
+
 	for (const auto& [i, sensor] : Indexed(player.GetSensors()))
 	{
 		if (sensor.distanceToBox.has_value()
 		and sensor.distanceToBox.value() < 30)
 		{
 			
-			TextureAsset(U"indicaterLidar")
-			.scaled(0.5,0.5)
+			TextureAsset(U"lidar")
+			.scaled(0.25,0.25)
 			.rotated(i * 45_deg)
-			.drawAt(Scene::Size().x - 256,256);
+			.drawAt(Scene::Size().x - 300,300);
+			
+
 		}
+		if (sensor.distanceToBox.has_value()
+		and sensor.distanceToBox.value() < 10)
+		{
+			TextureAsset(U"lidar")
+				.scaled(0.25, 0.25)
+				.rotated(i * 45_deg)
+				.drawAt(Scene::Size().x - 300, 300,Palette::Yellow);
+
+
+		}
+		if (sensor.distanceToBox.has_value()
+		and sensor.distanceToBox.value() < 3.5)
+		{
+			TextureAsset(U"lidar")
+				.scaled(0.25, 0.25)
+				.rotated(i * 45_deg)
+				.drawAt(Scene::Size().x - 300, 300,Palette::Red);
+
+
+		}
+		
 	}
-	#endif
 }
 
 void Game::Draw2DLightBloomed() const
@@ -579,15 +655,15 @@ void Game::Draw2DLightBloomed() const
 			
 			if (enemy->GetIsFired())
 			{
-				TextureAsset(U"indicater2")
-					.scaled(0.5, 0.5)
+				TextureAsset(U"indicater")
+					.scaled(0.25, 0.25)
 					.rotated(enemy->GetAngleDiffs())
 					.drawAt(Scene::Center(),Palette::Red);
 			}
 			else
 			{
-				TextureAsset(U"indicater2")
-					.scaled(0.5, 0.5)
+				TextureAsset(U"indicater")
+					.scaled(0.25, 0.25)
 					.rotated(enemy->GetAngleDiffs())
 					.drawAt(Scene::Center());
 			}
@@ -677,6 +753,10 @@ void Game::HitConfirmPlayerShot()
 			enemys.at(*enemyIndex)->collider().setR(0);
 		}
 	}
+	else
+	{
+		//弾が壁に当たった時の音
+	}
 }
 void Game::ControlFirearm()
 {
@@ -754,9 +834,24 @@ void Game::RangeEnemy::Move(Player& player)
 	}
 	if (GetAtkInterval().elapsed() > 500ms)
 	{
+
 		atkInterval().reset();
 	}
-	
+	if (GetDistanceToPlayer().value_or(9999) < 10)
+	{
+		SetAudioFalloff(1.0);
+	}
+	else
+	{
+		//距離50の時音の減衰率は50％
+		//敵のスポーン時に何故かOptionalのBad_accessが送出されるのでとりあえず１００％の音を鳴らす
+		SetAudioFalloff(1.0 - static_cast<double>(GetDistanceToPlayer().value_or(1) / 100));
+	}
+	if (GetFootStepTimer().elapsed() > 500ms)
+	{
+		//足音
+		footStepTimer().restart();
+	}
 	
 }
 
@@ -797,7 +892,11 @@ void Game::MeleeEnemy::Move(Player& player)
 	{
 		atkInterval().reset();
 	}
-	
+	if (GetFootStepTimer().elapsed() > 500ms)
+	{
+		//足音
+		footStepTimer().restart();
+	}
 }
 
 void Game::RangeEnemy::PlayNoticeSound()

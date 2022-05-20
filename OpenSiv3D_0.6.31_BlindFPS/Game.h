@@ -41,6 +41,8 @@ private:
 	void SonarAround();
 	bool menu = false;
 	bool isPaused = false;
+	
+	Stopwatch deadProtocol{ StartImmediately::No };
 	enum class Logging
 	{
 		DetectEnemy = 0,
@@ -132,6 +134,8 @@ private:
 		Enemy(char)
 			: m_collider(initpos, radius)
 		{}
+		Enemy(Vec3 pos) : m_collider(pos,radius)
+		{}
 		Vec3 initpos = { 0,2,50 };
 #endif // _DEBUG
 		//Sphere collider;
@@ -159,6 +163,8 @@ private:
 		void SetAngleDiffs(double angle){angleDiffs = angle;}
 		const double GetAudioPanRad()const{return audioPanRad;}
 		void SetAudioPanRad(double angle) {audioPanRad = angle;}
+		const double GetAudioFalloff()const{return audioFalloff;}
+		void SetAudioFalloff(double gain) { audioFalloff = gain;}
 		const std::optional<float>& GetDistanceToPlayer()const {return distanceToPlayer;}
 		void SetDistanceToPlayer(const std::optional<float>& dist){distanceToPlayer = dist;}
 		const std::optional<float>& GetDistanceNearestBox()const {return distanceNearestBox;}
@@ -175,6 +181,8 @@ private:
 		const Stopwatch& GetAtkInterval()const{return m_atkInterval;}
 		Stopwatch& fireIndicater(){return m_fireIndicater;}
 		const Stopwatch& GetFireIndicater()const{return m_fireIndicater;}
+		Stopwatch& footStepTimer(){return m_footStepTimer;}
+		const Stopwatch& GetFootStepTimer()const{return m_footStepTimer;}
 	private:
 		
 		static constexpr int32 health = DEV_ONLY_MAGIC_NUM;
@@ -183,6 +191,7 @@ private:
 		bool isFired = false;
 		double angleDiffs = 0_deg;
 		double audioPanRad = 0_deg;
+		double audioFalloff = 0_deg;
 		std::optional<float> distanceToPlayer = 0;
 		std::optional<float> distanceNearestBox = Math::Inf;
 		Vec3 oldPosition{};
@@ -191,12 +200,14 @@ private:
 		Stopwatch m_foundAtkCoolTimer{StartImmediately::No};
 		Stopwatch m_atkInterval{StartImmediately::No};
 		Stopwatch m_fireIndicater{StartImmediately::No};
+		Stopwatch m_footStepTimer{StartImmediately::Yes};
 	};
 	class RangeEnemy : public Enemy
 	{
 	public:
 		RangeEnemy() = default;
 		RangeEnemy(char) : Enemy('t') {}
+		RangeEnemy(Vec3 pos) : Enemy(pos) {}
 		void Move(Player& player)override;
 		void PlayNoticeSound()override;
 		const double GetVelocity()const override { return velocity; }
@@ -204,7 +215,7 @@ private:
 		const int32 GetAtk()const override { return atk; }
 	private:
 		static constexpr double velocity = 3;
-		static constexpr int32 atkRange = 8;
+		static constexpr int32 atkRange = 12;
 		static constexpr int32 atk = 80;
 
 	};
@@ -213,6 +224,8 @@ private:
 	public:
 		MeleeEnemy() = default;
 		MeleeEnemy(char) : Enemy('t') {}
+		MeleeEnemy(Vec3 pos) : Enemy(pos) {}
+
 		void Move(Player& player)override;
 		void PlayNoticeSound()override;
 		const double GetVelocity()const override { return velocity; }
@@ -221,7 +234,7 @@ private:
 
 	private:
 		static constexpr double velocity = 5;
-		static constexpr int32 atkRange = 3;
+		static constexpr int32 atkRange = 5;
 		static constexpr int32 atk = 300;
 	};
 

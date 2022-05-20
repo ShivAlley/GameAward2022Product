@@ -40,7 +40,7 @@ void Title::update()
 	}
 	if (tutorial == 1)
 	{
-		if (SimpleGUI::Button(U"決定", Vec2{ 1400,900 }))
+		if (SimpleGUI::Button(U"決定", Vec2{ Scene::Center().x,900 }))
 		{
 			tutorial= 0;
 		}
@@ -70,19 +70,22 @@ void Title::draw() const
 	titleName.scaled(1.2,1.2).draw(position.x,position.y);
 	START.draw(pos1);
 	Option.draw(pos2);
-	TutorialName.draw(pos3);
+	TextureAsset(U"tutorial").draw(pos3);
 	Exit.scaled(0.5,0.5).draw(pos4);
 
 	if (option == 1)
 	{
 		auto x =Rect{ 750,300,450 }.draw();
-		auto m=SimpleGUI::Slider(U"マウス感度{:.2f}"_fmt(getData().sensi), getData().sensi, 0.0, 1.0, Vec2{770,400}, 200, 200);
+		auto m=SimpleGUI::Slider(U"マウス感度{:.2f}"_fmt(getData().sensi), getData().sensi, 0.0, 5.0, Vec2{770,400}, 200, 200);
 		SimpleGUI::Button(U"決定", Vec2{ 1050,600 });
 	}
 	if (tutorial == 1)
 	{
-		Tutorial.draw(180,50);
-		SimpleGUI::Button(U"決定", Vec2{ 1400,900 });
+		Rect{ Scene::Size() }.draw(ColorF{ 0,0,0,0.8 });
+		TextureAsset(U"description")
+			.scaled(0.2, 0.2)
+			.drawAt(Scene::Center());
+		SimpleGUI::Button(U"決定", Vec2{ Scene::Center().x,900 });
 	}
 
 	if (option == 0&&tutorial ==0)
