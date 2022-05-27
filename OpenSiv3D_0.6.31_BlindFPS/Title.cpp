@@ -2,7 +2,7 @@
 Title::Title(const InitData& init)
 	:IScene(init)
 {
-
+	Cursor::SetDefaultStyle(CursorStyle::Default);
 }
 
 void Title::update()

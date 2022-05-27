@@ -7,6 +7,5 @@ public:
 	void update()override;
 	void draw()const override;
 private:
-
+	const VideoTexture videoTexture{ U"video/running.mp4", Loop::No };
 };
-

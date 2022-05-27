@@ -119,13 +119,15 @@
   <ItemGroup>
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="Menu.cpp" />
+    <ClCompile Include="Caution.cpp" />
+    <ClCompile Include="Opening.cpp" />
     <ClCompile Include="Result.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Title.cpp" />
+    <ClCompile Include="Tutorial.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="App\engine\texture\box-shadow\128.png" />
@@ -324,10 +326,12 @@
     <ClInclude Include="common.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="Main.h" />
-    <ClInclude Include="Menu.h" />
+    <ClInclude Include="Caution.h" />
+    <ClInclude Include="Opening.h" />
     <ClInclude Include="Result.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Title.h" />
+    <ClInclude Include="Tutorial.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App\example\obj\blacksmith.obj">

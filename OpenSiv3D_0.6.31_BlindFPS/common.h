@@ -6,6 +6,8 @@
 enum class GameState
 {
 	Title,
+	Opening,
+	Tutorial,
 	Game,
 	Menu,
 	Result,
@@ -14,6 +16,8 @@ enum class GameState
 struct ShareGameData
 {
 	double sensi = 0.5;
+	bool watchedOpening = true;
+	bool watchedTutorial = false;
 };
 
 #ifdef _DEBUG

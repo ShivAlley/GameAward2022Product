@@ -22,18 +22,23 @@ public:
 	Game(const InitData& init);
 	void update()override;
 	void draw() const override;
+
+	
 private:
 #if _DEBUG
 	VideoTexture teseff{ U"effects/64ed59a0b29891eb.mp4" };
 	Cylinder playercollider;
 	Mesh pyramid{ MeshData::Pyramid(3.0, 3.0) };
 	Audio gunShot{GMInstrument::Gunshot,PianoKey::C4,1.0s};
+	bool toggBillboard = true;
 #endif // _DEBUG
-
 	void LoadNavigate(int32 maxNode);
+	void ControlPlayer();
+	void EnableDeadProtocol();
+	void NavigationRoot();
+	void ControlEnemy();
 	void Draw2D()const;
 	void Draw2DLightBloomed()const;
-	void DrawTxt()const;
 	void HitConfirmPlayerShot();
 	void ControlFirearm();
 	bool isExistRightside(Vec3 v1,Vec3 v2);
@@ -41,6 +46,8 @@ private:
 	void SonarAround();
 	bool menu = false;
 	bool isPaused = false;
+	bool isGoal = false;
+	bool callonce = true;
 	
 	Stopwatch deadProtocol{ StartImmediately::No };
 	enum class Logging
@@ -48,15 +55,56 @@ private:
 		DetectEnemy = 0,
 		DestroyEnemy,
 		Damaged,
+		UpdateNavigate,
+		ReverseNavigate,
+		CollideWall,
+		Reloading,
+		ReloadEnd,
+		NoAmmo,
+		PoorAim,
+		DeadProtocolFirst,
+		DeadProtocol,
+		Tutorial,
+		Tutorial2,
+		startCaution,
+		startCaution2,
 	};
-	mutable struct TerminalController
+	mutable Stopwatch walltimer{StartImmediately::Yes};
+	class Terminal
 	{
+	private:
+		Terminal() = default;
+		~Terminal() = default;
+
+	public:
+		static Terminal& GetInst() {
+			static Terminal terminal;
+			return terminal;
+		}
 		Stopwatch streamTimer{ StartImmediately::No };
-		std::deque<Logging> txtIndexManager;
-	}terminal;
-	HashTable<Logging,String> command;
+		std::deque<Logging> txtIndex;
+		HashTable<Logging,String> command;
+		String currentStreamingCommand;
+		//mutable std::deque<String> logs;
+		mutable std::deque<std::pair<Logging,String>> logs;
+		void StreamTxt();
+		bool isHighlightedOrange(char32 glyph) {
+			return
+			(
+			(glyph == U'0')
+			or (glyph == U'1')
+			or (glyph == U'2')
+			or (glyph == U'3')
+			or (glyph == U'4')
+			or (glyph == U'5')
+			or (glyph == U'6')
+			or (glyph == U'7')
+			or (glyph == U'8')
+			or (glyph == U'9')
+			);
+		}
+	};
 	
-	mutable std::deque<String> logs;
 	//Array<String> consLogs;
 	struct PlayerUI
 	{
@@ -82,6 +130,8 @@ private:
 		Vec3 eyePosition{ 6,2,6 };
 		void SetRadian(double ang) { angle = ang; }
 		const double& GetRadian()const { return angle; }
+		void SetNextNodeDistance(double dist) { nextNodeDistance = dist; }
+		const double& GetNextNodeDistance()const { return nextNodeDistance; }
 		void incrementPassedNode(){++passedNode;}
 		void SetPassedNode(int32 num){passedNode = num;}
 		const int32 GetPassedNode()const {return passedNode;}
@@ -109,13 +159,14 @@ private:
 
 		int32 magazine = 8;
 		int32 health = 1000;
+		int32 nextNodeDistance = 0;
 		Stopwatch m_regenerateTimer{ StartImmediately::No };
 		Stopwatch m_reloadTimer{ StartImmediately::No };
 		Stopwatch m_fireCoolTimer{ StartImmediately::No };
 		double angle = 0_deg;
 		int32 passedNode = 0;
 		static constexpr int32 maxMagazine = 8;
-		static constexpr Duration reloadTime = 3.0s;
+		static constexpr Duration reloadTime = 2.2s;
 		//RPM120相当
 		//cooltime = RPM / 60 / 1.0s
 		static constexpr Duration fireCoolTime = 0.5s;
@@ -149,6 +200,8 @@ private:
 			if (isNotice == false)
 			{
 				PlayNoticeSound();
+				Terminal::GetInst().command[Logging::DetectEnemy] = U"方位{:.0f} | 距離{:.0f}に敵を感知"_fmt(ToDegrees(GetAngleDiffs()),GetDistanceToPlayer().value());
+				Terminal::GetInst().txtIndex.push_back(Logging::DetectEnemy);
 			}
 			isNotice = true;
 			noticeTimer().reset();
@@ -215,7 +268,7 @@ private:
 		const int32 GetAtk()const override { return atk; }
 	private:
 		static constexpr double velocity = 3;
-		static constexpr int32 atkRange = 12;
+		static constexpr int32 atkRange = 18;
 		static constexpr int32 atk = 80;
 
 	};
@@ -234,8 +287,25 @@ private:
 
 	private:
 		static constexpr double velocity = 5;
-		static constexpr int32 atkRange = 5;
+		static constexpr int32 atkRange = 9;
 		static constexpr int32 atk = 300;
+	};
+	class TutoEnemy : public Enemy
+	{
+	public:
+		TutoEnemy() = default;
+		TutoEnemy(char) : Enemy('t') {}
+		TutoEnemy(Vec3 pos) : Enemy(pos) {}
+		void Move(Player& player)override;
+		void PlayNoticeSound()override{AudioAsset(U"notice").playOneShot(); }
+		const double GetVelocity()const override { return velocity; }
+		const int32 GetAtkRange()const override { return atkRange; }
+		const int32 GetAtk()const override { return atk; }
+	private:
+		static constexpr double velocity = 3;
+		static constexpr int32 atkRange = 18;
+		static constexpr int32 atk = 80;
+
 	};
 
 	Array<std::shared_ptr<Enemy>> enemys;
@@ -245,10 +315,13 @@ private:
 		public:
 		NavigateNode(Vec3 pos):m_node(pos,radius){}
 		const int32 GetRadius()const{return radius;}
+		const double GetNextNodeDistance()const {return nextNodeDistance;}
+		double SetNextNodeDistance(double dist){nextNodeDistance = dist;}
 		Sphere& node(){return m_node;}
 		const Sphere& GetNode()const{return m_node;}
 		private:
 		Sphere m_node;
+		double nextNodeDistance;
 		static const int32 radius = 2;
 	};
 
@@ -265,8 +338,6 @@ private:
 	double fov = 90_deg;
 	BasicCamera3D camera{ renderTexture.size(), fov, Vec3{ 0, 16, -32 }, GetFocusPosition({0,2,-16}, 0_deg),Vec3{ 0, 1, 0 } ,0.2};
 
-	// ビルボード表示する板
-	const Mesh billboard{ MeshData::Billboard() };
 	
 
 	CSV terrCSV;
@@ -284,7 +355,15 @@ private:
 	const RenderTexture gaussianA4{ Scene::Size() / 4 }, gaussianB4{ Scene::Size() / 4 };
 	const RenderTexture gaussianA8{ Scene::Size() / 8 }, gaussianB8{ Scene::Size() / 8 };
 	const Texture compass{ U"Image/UI_.png" };
-	
+
+protected:
+		void tutorial();
+		void tutorialDraw()const;
+		void tutorialErase() { enemys.clear(); }
+		Stopwatch tutorialTimer{ StartImmediately::No };
+		int32 explainState = 0;
+		
+private:
 
 	Vec3 GetDirection(double cameraAngle)const
 	{
