@@ -8,11 +8,13 @@ Caution::Caution(const InitData& init)
 
 void Caution::update()
 {
-	
+	auto pad = getData().controller = XInput(0);
+
 	if (timer.elapsed() > 5s
 		or MouseL.down()
 		or KeyEnter.down()
-		or KeySpace.down())
+		or KeySpace.down()
+		or pad.buttonA.down())
 	{
 		changeScene(GameState::Title);
 	}

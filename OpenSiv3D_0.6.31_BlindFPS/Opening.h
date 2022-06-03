@@ -6,6 +6,7 @@ public:
 	Opening(const InitData& init);
 	void update()override;
 	void draw() const override;
+	void drawFadeOut(double t)const override;
 private:
 	//FontAsset::Register(U"meiryo", 30, FileSystem::GetFolderPath(SpecialFolder::SystemFonts) + U"meiryo.ttc");
 	//FontAsset::Register(U"meiryob", 50, FileSystem::GetFolderPath(SpecialFolder::SystemFonts) + U"meiryob.ttc");
@@ -16,10 +17,17 @@ private:
 	bool displayIcon = false;
 	bool overriding = false;
 	bool overridingDrawingEnd = false;
+	bool pressAny = false;
+	double lightAni = 0.0;
 	int32 overridingCount = 0;
 	Stopwatch playerTouch{ StartImmediately::No};
 	int32 touchCount = 0;
 	mutable String currentStr;
+	double time = 0;
+	double elapse = 0;
+	Vec2 moveLngIcon = {0,0};
+	Vec2 moveLngTxt = {0,0};
+	Stopwatch moveLerpTimer{StartImmediately::No};
 	
 	const RenderTexture gaussianA1{ Scene::Size() }, gaussianB1{ Scene::Size() };
 	const RenderTexture gaussianA4{ Scene::Size() / 4 }, gaussianB4{ Scene::Size() / 4 };
@@ -36,6 +44,7 @@ private:
 		ErrorOpening2,
 		ErrorOpening3,
 		ErrorOpening4,
+		overriding,
 	};
 	class Terminal
 	{

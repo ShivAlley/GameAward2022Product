@@ -10,9 +10,9 @@ Game::Game(const InitData& init) :IScene(init)
 			//boxes << Box{ (x * 4.0), 2, 50 + (z * 4.0), 4.0 };
 		}
 	}
-	terrCSV.load(U"csv/Teamprod_地形.csv");
-	navigateCSV.load(U"csv/Teamprod_ナビゲーション.csv");
-	enemyCSV.load(U"csv/Teamprod_敵.csv");
+	terrCSV.load(U"csv/GameAwa_terrain.csv");
+	navigateCSV.load(U"csv/GameAwa_navigation.csv");
+	enemyCSV.load(U"csv/GameAwa_enemy.csv");
 	Terminal::GetInst().logs.clear();
 	//terrCSV.load(U"csv/Stage1._コイン.csv");
 	//terrCSV.load(U"Stage/Stage1._地形.csv");
@@ -96,11 +96,11 @@ void Game::update()
 	}
 	if (KeyU.down())
 	{
-		enemys << std::make_shared<RangeEnemy>('t');
+		//enemys << std::make_shared<RangeEnemy>('t');
 	}
 	if (KeyI.down())
 	{
-		enemys << std::make_shared<MeleeEnemy>('t');
+		//enemys << std::make_shared<MeleeEnemy>('t');
 	}
 	if (KeyO.down())
 	{
@@ -119,22 +119,48 @@ void Game::update()
 	}
 	//Terminal::GetInst().command[Logging::Damaged] = U"You look at{:.0f}degrees"_fmt(player.GetRadian());
 #endif
+	auto pad = XInput(0);
+	Circle cir{ Arg::center(Padpos),50 };
 	if (callonce)
 	{
 		Terminal::GetInst().command[Logging::startCaution] = U"警告：周囲に敵味方不明機を多数感知";
 		Terminal::GetInst().command[Logging::startCaution2] = U"全てを敵機としてマークします";
 		Terminal::GetInst().txtIndex.push_back(Logging::startCaution);
 		Terminal::GetInst().txtIndex.push_back(Logging::startCaution2);
+		AudioAsset(U"v敵味方不明機").playOneShot();
 		callonce = false;
 	}
 	
+	if(not AudioAsset(U"v経路更新").isPlaying()
+		and not AudioAsset(U"v経路逸脱").isPlaying()
+		and not AudioAsset(U"v衝突").isPlaying()
+		and not AudioAsset(U"v命中せず").isPlaying()
+		and not AudioAsset(U"vリロード中").isPlaying()
+		and not AudioAsset(U"vリロード完了").isPlaying()
+		and not AudioAsset(U"v弾倉ゼロ").isPlaying()
+		and not AudioAsset(U"v撃破").isPlaying())
+		{
+			canPlay = true;
+		}
+	else
+	{
+		canPlay = false;
+	}
 
+	if (AudioAsset(U"v0end").isPlaying())
+	{
+		canPlay = false;
+		endingExplain = false;
+	}
+
+	Enemy::canplay = canPlay;
+	
 
 
 
 	//ポーズ画面への移行
 
-	if (KeyEscape.down()
+	if ((KeyEscape.down() or pad.buttonStart.down())
 		and player.GetHealth() > 0)
 	{
 		isPaused = !isPaused;       // ESCが押されたらポーズ状態が反転
@@ -145,7 +171,8 @@ void Game::update()
 
 	if (isPaused)
 	{
-		if (SimpleGUI::ButtonAt(U"タイトルへ戻る", Vec2{ Scene::Center().x,100 }))
+		if (SimpleGUI::ButtonAt(U"タイトルへ戻る", Vec2{ Scene::Center().x,100 })
+			or (SimpleGUI::ButtonRegionAt(U"タイトルへ戻る", Vec2{ Scene::Center().x,100 }).intersects(cir) and pad.buttonA.down()))
 		{
 			changeScene(GameState::Title);
 		}
@@ -167,6 +194,11 @@ void Game::update()
 	
 
 	NavigationRoot();
+
+	if (isGoal)
+	{
+		changeScene(GameState::Result);
+	}
 
 
 	Cursor::SetPos(Scene::Center());
@@ -212,6 +244,7 @@ void Game::SonarAround()
 
 void Game::draw()const
 {
+	auto pad = XInput(0);
 	// 3D 描画
 	{
 		// renderTexture を背景色で塗りつぶし、
@@ -248,10 +281,20 @@ void Game::draw()const
 	if (isPaused)
 	{
 		Rect{Scene::Size()}.draw(ColorF{0,0,0,0.8});
-		SimpleGUI::Slider(U"マウス感度{:.2f}"_fmt(getData().sensi), getData().sensi, 0.0, 5.0, Vec2{ Scene::Center().x - 500,150 }, 500, 400);
-		TextureAsset(U"description")
-			.scaled(0.2,0.2)
-			.drawAt(Scene::Center() + Vec2{0,200});
+		SimpleGUI::Slider(U"エイム感度{:.2f}"_fmt(getData().sensi), getData().sensi, 0.0, 5.0, Vec2{ Scene::Center().x - 500,150 }, 500, 400);
+		if (pad.isConnected())
+		{
+			TextureAsset(U"controllerDesc")
+				.scaled(0.9,0.9)
+				.drawAt(Scene::Center() + Vec2{ 0, 150 });
+		}
+		else
+		{
+
+			TextureAsset(U"description")
+				.scaled(0.2, 0.2)
+				.drawAt(Scene::Center() + Vec2{ 0,200 });
+		}
 
 		if (SimpleGUI::ButtonAt(U"タイトルへ戻る", Vec2{ Scene::Center().x,100}))
 		{
@@ -263,7 +306,29 @@ void Game::draw()const
 			U"PAUSE"
 			U"///////////////////////////////////////////////")
 			.drawAt(Vec2{ Scene::Center().x,300 },Palette::Darkorange);
-			
+
+		if (pad.leftThumbX)
+		{
+			Padpos.x += pad.leftThumbX * Scene::DeltaTime() * 500;
+		}
+		if (pad.leftThumbY)
+		{
+			Padpos.y -= pad.leftThumbY * Scene::DeltaTime() * 500;
+		}
+		if (pad.buttonLB.down())
+		{
+			getData().sensi -= 0.1;
+		}
+		if (pad.buttonRB.down())
+		{
+			getData().sensi += 0.1;
+		}
+		if (pad.isConnected())
+		{
+			drawCur(Padpos);
+			FontAsset(U"meiryob")(U"L").draw(Vec2{ Scene::Center().x - 500 + 450,170 }, Palette::Gray);
+			FontAsset(U"meiryob")(U"R").draw(Vec2{ Scene::Center().x - 500 + 500 + 400,170 }, Palette::Gray);
+		}
 		
 		return;//本来ここでReturnすべきでないがライトブルームを消すためにリターンする
 	}
@@ -381,6 +446,7 @@ void Game::LoadNavigate(int32 maxNode)
 
 void Game::ControlPlayer()
 {
+	auto pad = XInput(0);
 	const double speed = (Scene::DeltaTime() * 2.0 * 5);
 	double rate = 1.0;
 	if (KeyA.pressed() || KeyD.pressed()) {
@@ -389,25 +455,32 @@ void Game::ControlPlayer()
 			rate = Math::Constants::InvSqrt2;
 		}
 	}
+	if (pad.leftThumbX < -0.1 or pad.leftThumbX > 0.1) {
+		if (pad.leftThumbY < -0.1 or pad.leftThumbY > 0.1){
+			rate = Math::Constants::InvSqrt2;
+		}
+	}
 	if (player.GetHealth() > 0)
 	{
-		if (KeyW.pressed())
+
+		
+		if (KeyW.pressed() or pad.leftThumbY > 0.1)
 		{
 			player.eyePosition += (GetDirection(player.GetRadian()) * speed * rate);
 		}
 
-		if (KeyS.pressed())
+		if (KeyS.pressed() or pad.leftThumbY < -0.1)
 		{
 			player.eyePosition += (-GetDirection(player.GetRadian()) * speed * rate);
 		}
 
-		if (KeyA.pressed())
+		if (KeyA.pressed() or pad.leftThumbX < -0.1)
 		{
 			player.eyePosition += (GetDirection(player.GetRadian() - 90_deg) * speed * rate);
 
 		}
 
-		if (KeyD.pressed())
+		if (KeyD.pressed() or pad.leftThumbX > 0.1)
 		{
 			player.eyePosition += (GetDirection(player.GetRadian() + 90_deg) * speed * rate);
 		}
@@ -428,7 +501,9 @@ void Game::ControlPlayer()
 		EnableDeadProtocol();
 	}
 
-	player.SetRadian(player.GetRadian() + Cursor::DeltaRaw().x * 0.001 * getData().sensi);
+	player.SetRadian(player.GetRadian() + Cursor::DeltaRaw().x * 0.0009 * getData().sensi);
+
+	player.SetRadian(player.GetRadian() + pad.rightThumbX * 0.01 * getData().sensi);
 
 	if (player.GetRadian() < 0_deg)
 	{
@@ -465,36 +540,42 @@ void Game::EnableDeadProtocol()
 		case 0:
 			Terminal::GetInst().command[Logging::DeadProtocolFirst] = U"危険：致命的な損傷";
 			Terminal::GetInst().txtIndex.push_back(Logging::DeadProtocolFirst);
+			AudioAsset(U"v致命的な損傷").playOneShot();
 			break;
 		case 1:
 			Terminal::GetInst().command[Logging::DeadProtocol] = U"強制的に完全防御システムを起動します";
 			Terminal::GetInst().txtIndex.push_back(Logging::DeadProtocol);
 			break;
-		case 2:
+		case 3:
 			Terminal::GetInst().command[Logging::DeadProtocol] = U"[PHILOSOPCHICAL_DEADLOCK]プロトコル作動";
 			Terminal::GetInst().txtIndex.push_back(Logging::DeadProtocol);
+			AudioAsset(U"v哲学的な死").playOneShot();
 			break;
-		case 3:
+		case 4:
 			Terminal::GetInst().command[Logging::DeadProtocol] = U"3...";
 			Terminal::GetInst().txtIndex.push_back(Logging::DeadProtocol);
 			break;
-		case 4:
+		case 5:
 			Terminal::GetInst().command[Logging::DeadProtocol] = U"2...";
 			Terminal::GetInst().txtIndex.push_back(Logging::DeadProtocol);
-			break;
-		case 5:
-			Terminal::GetInst().command[Logging::DeadProtocol] = U"1...";
-			Terminal::GetInst().txtIndex.push_back(Logging::DeadProtocol);
+			AudioAsset(U"v15game").playOneShot();
 			break;
 		case 6:
-			Terminal::GetInst().command[Logging::DeadProtocol] = U"You lost control";
+			Terminal::GetInst().command[Logging::DeadProtocol] = U"1...";
 			Terminal::GetInst().txtIndex.push_back(Logging::DeadProtocol);
+			AudioAsset(U"v16game").playOneShot();
 			break;
 		case 7:
-			Terminal::GetInst().command[Logging::DeadProtocol] = U"GOODBYE";
+			Terminal::GetInst().command[Logging::DeadProtocol] = U"You lost control";
 			Terminal::GetInst().txtIndex.push_back(Logging::DeadProtocol);
+			AudioAsset(U"vコントロールロスト").playOneShot();
 			break;
 		case 8:
+			Terminal::GetInst().command[Logging::DeadProtocol] = U"GOODBYE";
+			Terminal::GetInst().txtIndex.push_back(Logging::DeadProtocol);
+			AudioAsset(U"vさようなら").playOneShot();
+			break;
+		case 9:
 			progress = 0;
 			changeScene(GameState::Title);
 			return;
@@ -522,14 +603,30 @@ void Game::NavigationRoot()
 		player.incrementPassedNode();
 		Terminal::GetInst().command[Logging::UpdateNavigate] = U"目標への経路を更新";
 		Terminal::GetInst().txtIndex.push_back(Logging::UpdateNavigate);
-
-		
+		if (canPlay)
+		{
+			AudioAsset(U"v経路更新").play();
+		}
 	}
 	if (player.collider.intersects(nextDestination.GetNode())
-		and nextDestination.GetNode() == navigatePass.back().GetNode())
+		and (nextDestination.GetNode() == navigatePass.back().GetNode()))
 		{
 			isGoal = true;
 		}
+	if (nextDestination.GetNode() == navigatePass.back().GetNode()
+		and player.GetNextNodeDistance() < 60)
+	{
+		if(endingExplain)
+		{
+			AudioAsset(U"v0end").play();
+			Terminal::GetInst().command[Logging::ending] = U"高エネルギー放射検知 | 高次元物質の低次元展開を観測";
+			Terminal::GetInst().txtIndex.push_back(Logging::ending);
+			Terminal::GetInst().command[Logging::ending2] = U"単純接触によるエネルギー供給を行えば";
+			Terminal::GetInst().txtIndex.push_back(Logging::ending2);
+			Terminal::GetInst().command[Logging::ending3] = U"７４％ほどの確率で損傷した視床の回復が可能です";
+			Terminal::GetInst().txtIndex.push_back(Logging::ending3);
+		}
+	}
 	if (player.GetPassedNode() > 0)
 	{
 		//HACK:よく見たら距離をとっているだけで前進したときもここの処理を走っている
@@ -562,6 +659,10 @@ void Game::NavigationRoot()
 			{
 				Terminal::GetInst().command[Logging::ReverseNavigate] = U"警告：経路から逸脱...ルートを再構築しました";
 				Terminal::GetInst().txtIndex.push_back(Logging::ReverseNavigate);
+				if (canPlay)
+				{
+					AudioAsset(U"v経路逸脱").play();
+				}
 			}
 			
 			player.SetPassedNode(nearestNodeIndex);
@@ -736,11 +837,15 @@ void Game::Draw2D() const
 				.scaled(0.25, 0.25)
 				.rotated(i * 45_deg)
 				.drawAt(Scene::Size().x - 300, 300,Palette::Red);
-			if (walltimer.elapsed() > 3.5s and player.GetHealth() > 0)//HACK:ifでのバグ潰しはなるべく避ける
+			if (walltimer.elapsed() > 3.0s and player.GetHealth() > 0)//HACK:ifでのバグ潰しはなるべく避ける
 			{
 				walltimer.restart();
 				Terminal::GetInst().command[Logging::CollideWall] = U"警告：壁と衝突しています";
 				Terminal::GetInst().txtIndex.push_back(Logging::CollideWall);
+				if (canPlay)
+				{
+					AudioAsset(U"v衝突").play();
+				}
 			}
 
 		}
@@ -822,8 +927,7 @@ void Game::HitConfirmPlayerShot()
 	}
 	for (const auto& [i, enemy] : Indexed(enemys))
 	{
-		if (camera.screenToRay(Scene::Center()).intersects(enemy->GetCollider())
-			and MouseL.down())
+		if (camera.screenToRay(Scene::Center()).intersects(enemy->GetCollider()))
 		{
 			distEnemy = camera.screenToRay(Scene::Center()).intersects(enemy->GetCollider());
 			if (*distEnemy < minDistEnemy)
@@ -841,12 +945,20 @@ void Game::HitConfirmPlayerShot()
 			AudioAsset(U"brokenEnemy").playOneShot(MixBus0,1.0,enemys.at(*enemyIndex)->GetAngleDiffs());
 			Terminal::GetInst().command[Logging::DestroyEnemy] = U"敵を撃破";
 			Terminal::GetInst().txtIndex.push_back(Logging::DestroyEnemy);
+			if (canPlay)
+			{
+				AudioAsset(U"v撃破").play();
+			}
 		}
 	}
 	else
 	{
 		Terminal::GetInst().command[Logging::PoorAim] = U"警告：遮蔽物に着弾 | 敵に命中せず";
 		Terminal::GetInst().txtIndex.push_back(Logging::PoorAim);
+		if (canPlay)
+		{
+			AudioAsset(U"v命中せず").play();
+		}
 		//外した時のテキスト要らない気がする
 		// でもIntersectAtで音の定位は作るべきか？
 		// 正直なくてもいい
@@ -855,9 +967,10 @@ void Game::HitConfirmPlayerShot()
 }
 void Game::ControlFirearm()
 {
+	auto pad = XInput(0);
 	//Rを押したときプレイヤーの現在の弾倉が最大より少なく、
 	//リロード中でなければリロードが開始される
-	if (KeyR.down()
+	if ((KeyR.down() or pad.buttonX.down())
 		and player.GetMagazine() < player.GetMaxMagazine()
 		and not player.GetReloadTimer().isRunning())
 	{
@@ -865,6 +978,10 @@ void Game::ControlFirearm()
 		AudioAsset(U"reloadStart").playOneShot();
 		Terminal::GetInst().command[Logging::Reloading] = U"リロード中です...";
 		Terminal::GetInst().txtIndex.push_back(Logging::Reloading);
+		if (canPlay)
+		{
+			AudioAsset(U"vリロード中").play();
+		}
 	}
 	//3秒経ったらリロードが完了する
 	if (player.GetReloadTimer().elapsed() > player.GetReloadTime())
@@ -874,16 +991,25 @@ void Game::ControlFirearm()
 		AudioAsset(U"reloadEnd").playOneShot();
 		player.HaveReloadedGun();
 		player.reloadTimer().reset();
+		if (canPlay)
+		{
+			AudioAsset(U"vリロード完了").play();
+		}
 	}
 	//左クリックしたときプレイヤーが前回の射撃から、
 	//ある程度時間が経過しており、
 	//弾倉が１以上あるときに、
 	//リロード中でいなければ撃てる
-	if (MouseL.down()
+	if (pad.rightTrigger == 0.0)
+	{
+		isRT = true;
+	}
+	if ((MouseL.down() or pad.rightTrigger > 0.3 and isRT)
 		and not player.GetFireCoolTimer().isRunning()
 		and player.GetMagazine() > 0
 		and not player.reloadTimer().isRunning())
 	{
+		isRT = false;
 		player.Fire();
 		//当たったかどうかの確認をここで行う
 		HitConfirmPlayerShot();
@@ -891,7 +1017,7 @@ void Game::ControlFirearm()
 		AudioAsset(U"shot").playOneShot(MixBus1, 0.7, 0);
 	}
 
-	if (MouseL.down()
+	if ((MouseL.down() or pad.rightTrigger > 0.3 and isRT)
 		and not player.GetFireCoolTimer().isRunning()
 		and player.GetMagazine() == 0//弾倉が０のとき
 		and not player.reloadTimer().isRunning())
@@ -899,6 +1025,15 @@ void Game::ControlFirearm()
 		AudioAsset(U"noAmmo").playOneShot();
 		Terminal::GetInst().command[Logging::NoAmmo] = U"警告：弾倉内の残弾数が０です";
 		Terminal::GetInst().txtIndex.push_back(Logging::NoAmmo);
+		if (canPlay)
+		{
+			AudioAsset(U"v弾倉ゼロ").play();
+		}
+	}
+
+	if (pad.rightTrigger > 0.3)
+	{
+		isRT = false;
 	}
 
 	if (player.GetFireCoolTimer().elapsed() > player.GetFireCoolTime())
@@ -940,6 +1075,10 @@ void Game::RangeEnemy::Move(Player& player)
 				Terminal::GetInst().command[Logging::Damaged] = U"警告：方位{:.0f} | 距離{:.0f}より被弾"_fmt(ToDegrees(GetAngleDiffs()), GetDistanceToPlayer().value());
 				//方位angle()、距離Lengthより被弾;
 				Terminal::GetInst().txtIndex.push_back(Logging::Damaged);
+				if (canplay)
+				{
+					AudioAsset(U"v被弾").play();
+				}
 			}
 			
 		}
@@ -999,6 +1138,10 @@ void Game::MeleeEnemy::Move(Player& player)
 				SetIsFire(true);
 				Terminal::GetInst().command[Logging::Damaged] = U"警告：方位{:.0f} | 距離{:.0f}より被弾"_fmt(ToDegrees(GetAngleDiffs()),GetDistanceToPlayer().value());
 				Terminal::GetInst().txtIndex.push_back(Logging::Damaged);
+				if (canplay)
+				{
+					AudioAsset(U"v被弾").play();
+				}
 			}
 			
 		}
@@ -1054,11 +1197,11 @@ void Game::TutoEnemy::Move(Player& player)
 
 void Game::RangeEnemy::PlayNoticeSound()
 {
-	AudioAsset(U"notice").playOneShot(MixBus0,0.6,GetAudioPanRad());
+	AudioAsset(U"notice").playOneShot(0.45,GetAudioPanRad());
 }
 void Game::MeleeEnemy::PlayNoticeSound()
 {
-	AudioAsset(U"notice").playOneShot(MixBus0, 0.6, GetAudioPanRad());
+	AudioAsset(U"notice").playOneShot(0.45, GetAudioPanRad());
 }
 
 void Game::Terminal::StreamTxt()
@@ -1084,6 +1227,7 @@ void Game::Terminal::StreamTxt()
 				}
 				break;
 			case Logging::DeadProtocolFirst:
+			case Logging::TutorialDescCaution:
 				color = Palette::Red;
 				break;
 			case Logging::CollideWall:
@@ -1096,6 +1240,9 @@ void Game::Terminal::StreamTxt()
 				break;
 			case Logging::Tutorial:
 			case Logging::Tutorial2:
+			case Logging::ending:
+			case Logging::ending2:
+			case Logging::ending3:
 				color = Palette::Darkgreen;
 				break;
 			default:
@@ -1105,6 +1252,7 @@ void Game::Terminal::StreamTxt()
 					color = Palette::Orangered;
 				}
 			case Logging::DeadProtocol:
+			case Logging::TutorialDesc:
 				break;
 			}
 			//改行文字の場合特別な処理が必要だがそもそもTerminalに改行文字は渡さないようにする
@@ -1147,6 +1295,7 @@ void Game::Terminal::StreamTxt()
 						}
 						break;
 					case Logging::DeadProtocolFirst:
+					case Logging::TutorialDescCaution:
 						color = Palette::Red;
 						break;
 					case Logging::CollideWall:
@@ -1159,6 +1308,9 @@ void Game::Terminal::StreamTxt()
 						break;
 					case Logging::Tutorial:
 					case Logging::Tutorial2:
+					case Logging::ending:
+					case Logging::ending2:
+					case Logging::ending3:
 						color = Palette::Darkgreen;
 						break;
 					default:
@@ -1168,6 +1320,7 @@ void Game::Terminal::StreamTxt()
 							color = Palette::Orangered;
 						}
 					case Logging::DeadProtocol:
+					case Logging::TutorialDesc:
 						break;
 					}
 				}
@@ -1195,11 +1348,11 @@ void Game::tutorial()
 	}
 	if (KeyU.down())
 	{
-		enemys << std::make_shared<RangeEnemy>('t');
+		//enemys << std::make_shared<RangeEnemy>('t');
 	}
 	if (KeyI.down())
 	{
-		enemys << std::make_shared<MeleeEnemy>('t');
+		//enemys << std::make_shared<MeleeEnemy>('t');
 	}
 	if (KeyO.down())
 	{
@@ -1214,14 +1367,115 @@ void Game::tutorial()
 	//Print << navigatePass.back().GetRadius();
 	if (isGoal)
 	{
-		changeScene(GameState::Title);
+		changeScene(GameState::Result);
 	}
 	//Terminal::GetInst().command[Logging::Damaged] = U"You look at{:.0f}degrees"_fmt(player.GetRadian());
 #endif
+	auto pad = XInput(0);
+	if (pad.isConnected())
+	{
+		skipoverrideCount = pad.buttonB.pressedDuration().count() * 100;
+		if (pad.buttonB.up())
+		{
+			skipoverrideCount = 0;
+		}
+	}
+	else
+
+	{
+		if (KeyB.pressed())
+		{
+			skipoverrideCount = KeyB.pressedDuration().count() * 100;
+		}
+		if (KeyB.up())
+		{
+			skipoverrideCount = 0;
+		}
+	}
+	if (skipoverrideCount > 300)
+	{
+		changeScene(GameState::Game);
+	}
+	if (statusTimer.elapsed() > 5s and statusDesc)
+	{
+		switch (descState)
+		{
+		case 0:
+			Terminal::GetInst().command[Logging::TutorialDesc] = U"操縦者の認知特性に基づきシステム言語を調整...完了";
+			Terminal::GetInst().txtIndex.push_back(Logging::TutorialDesc);
+			AudioAsset(U"v認知特性").play();
+			break;
+		case 1:
+			Terminal::GetInst().command[Logging::TutorialDescCaution] = U"警告：現在視界を喪失しています";
+			Terminal::GetInst().txtIndex.push_back(Logging::TutorialDescCaution);
+			AudioAsset(U"v視界喪失").play();
+			break;
+		case 2:
+			Terminal::GetInst().command[Logging::TutorialDesc] = U"作戦要綱を参照...<データが破損しています>";
+			Terminal::GetInst().txtIndex.push_back(Logging::TutorialDesc);
+			AudioAsset(U"v作戦要綱").play();
+			break;
+		case 3:
+			Terminal::GetInst().command[Logging::TutorialDesc] = U"至上命令を参照：必ず帰還せよ";
+			Terminal::GetInst().txtIndex.push_back(Logging::TutorialDesc);
+			AudioAsset(U"v至上命令").play();
+			break;
+		case 4:
+			Terminal::GetInst().command[Logging::TutorialDesc] = U"ミッションを再設定";
+			Terminal::GetInst().txtIndex.push_back(Logging::TutorialDesc);
+			AudioAsset(U"v再設定").play();
+			break;
+		case 5:
+			Terminal::GetInst().command[Logging::TutorialDesc] = U"操縦者の支援を開始します | HUD起動完了";
+			Terminal::GetInst().txtIndex.push_back(Logging::TutorialDesc);
+			AudioAsset(U"v支援開始").play();
+			break;
+		default:
+			break;
+		}
+		++descState;
+		statusTimer.restart();
+	}
+	if (descState > 6)
+	{
+		statusDesc = false;
+	}
+	if (statusDesc)
+	{
+		return;//状況の説明が終わるまでReturn
+	}
 	if (not tutorialTimer.isRunning())
 	{
 		Terminal::GetInst().command[Logging::Tutorial] = U"特殊状況下における復帰訓練を開始します...";
 		Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+		Terminal::GetInst().command[Logging::Tutorial2] = U"B長押しで即座に終了、作戦が開始されます";
+		Terminal::GetInst().txtIndex.push_back(Logging::Tutorial2);
+		AudioAsset(U"v特殊状況下").play();
+	}
+
+	if (pad.isConnected())
+	{
+		skipCount = pad.buttonB.pressedDuration().count() * 100;
+		if (pad.buttonB.up())
+		{
+			skipCount = 0;
+		}
+	}
+	else
+
+	{
+		if (KeyB.pressed())
+		{
+			skipCount = KeyB.pressedDuration().count() * 100;
+		}
+		if (KeyB.up())
+		{
+			skipCount = 0;
+		}
+	}
+	if (skipCount > 400.0)
+	{
+		changeScene(GameState::Game);
 	}
 	tutorialTimer.start();
 	if (tutorialTimer.elapsed() > 10s)
@@ -1229,33 +1483,68 @@ void Game::tutorial()
 		switch (explainState)
 		{
 		case 0:
-			Terminal::GetInst().command[Logging::Tutorial] = U"WASDで移動";
-			Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+			if (pad.isConnected())
+			{
+				Terminal::GetInst().command[Logging::Tutorial] = U"左スティックで移動";
+				Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+				AudioAsset(U"v左スティック").play();
+			}
+			else
+			{
+
+				Terminal::GetInst().command[Logging::Tutorial] = U"WASDで移動";
+				Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+				AudioAsset(U"vWASD").play();
+			}
 			++explainState;
 			break;
 		case 1:
-			Terminal::GetInst().command[Logging::Tutorial] = U"マウスで視点移動";
-			Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+			if (pad.isConnected())
+			{
+				Terminal::GetInst().command[Logging::Tutorial] = U"右スティックで視点移動";
+				Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+				AudioAsset(U"v右スティック").play();
+			}
+			else
+			{
+
+				Terminal::GetInst().command[Logging::Tutorial] = U"マウスで視点移動";
+				Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+				AudioAsset(U"vマウス").play();
+			}
 			++explainState;
 			break;
 		case 2:
 			Terminal::GetInst().command[Logging::Tutorial] = U"画面右上に障害物との位置推定ソナーを表示中です";
 			Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+			AudioAsset(U"v位置推定").play();
 			++explainState;
 			break;
 		case 3:
 			Terminal::GetInst().command[Logging::Tutorial] = U"画面下部に次の目標までの距離と方向を表示中です";
 			Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+			AudioAsset(U"v画面下部").play();
 			++explainState;
 			break;
 		case 4:
 			Terminal::GetInst().command[Logging::Tutorial] = U"画面中央に自機の耐久限界を表示中です";
 			Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+			AudioAsset(U"v耐久限界").play();
 			++explainState;
 			break;
 		case 5:
-			Terminal::GetInst().command[Logging::Tutorial] = U"左クリックで射撃、Rでリロードが可能です";
-			Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+			if (pad.isConnected())
+			{
+				Terminal::GetInst().command[Logging::Tutorial] = U"右トリガーで射撃、Xボタンでリロードが可能です";
+				Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+				AudioAsset(U"v射撃").play();
+			}
+			else
+			{
+				Terminal::GetInst().command[Logging::Tutorial] = U"左クリックで射撃、Rでリロードが可能です";
+				Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+				AudioAsset(U"v左クリック").play();
+			}
 			++explainState;
 			break;
 		case 6:
@@ -1263,6 +1552,7 @@ void Game::tutorial()
 			Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
 			Terminal::GetInst().command[Logging::Tutorial2] = U"８秒後に仮想の敵を召喚";
 			Terminal::GetInst().txtIndex.push_back(Logging::Tutorial2);
+			AudioAsset(U"v敵を発見した場合").play();
 			++explainState;
 			break;
 		case 7:
@@ -1270,6 +1560,7 @@ void Game::tutorial()
 			enemys << std::make_shared<TutoEnemy>(player.collider.center - Vec3{ 30,0,30 });
 			Terminal::GetInst().command[Logging::Tutorial] = U"疑似信号により仮想の敵を召喚 | 撃破してください";
 			Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+			AudioAsset(U"v疑似信号").play();
 			++explainState;
 			break;
 		case 8:
@@ -1277,6 +1568,7 @@ void Game::tutorial()
 			{
 				Terminal::GetInst().command[Logging::Tutorial] = U"復帰訓練終了...１０秒後に仮想空間を終了します";
 				Terminal::GetInst().txtIndex.push_back(Logging::Tutorial);
+				AudioAsset(U"v復帰訓練終了").play();
 				++explainState;
 			}
 			break;
@@ -1289,6 +1581,7 @@ void Game::tutorial()
 	
 	if (explainState > 9)//caseMax + 1
 	{
+		getData().watchedTutorial = true;
 		changeScene(GameState::Game);
 	}
 
@@ -1297,7 +1590,7 @@ void Game::tutorial()
 
 	//ポーズ画面への移行
 
-	if (KeyEscape.down()
+	if ((KeyEscape.down() or pad.buttonStart.down())
 		and player.GetHealth() > 0)
 	{
 		isPaused = !isPaused;       // ESCが押されたらポーズ状態が反転
@@ -1305,10 +1598,11 @@ void Game::tutorial()
 
 	}
 
-
+	Circle cir{ Arg::center(Padpos),50 };
 	if (isPaused)
 	{
-		if (SimpleGUI::ButtonAt(U"タイトルへ戻る", Vec2{ Scene::Center().x,100 }))
+		if (SimpleGUI::ButtonAt(U"タイトルへ戻る", Vec2{ Scene::Center().x,100 })
+			or (SimpleGUI::ButtonRegionAt(U"タイトルへ戻る", Vec2{ Scene::Center().x,100 }).intersects(cir) and pad.buttonA.down()))
 		{
 			changeScene(GameState::Title);
 		}
@@ -1354,6 +1648,7 @@ void Game::tutorial()
 
 void Game::tutorialDraw()const
 {
+	auto pad = XInput(0);
 	// 3D 描画
 	{
 		// renderTexture を背景色で塗りつぶし、
@@ -1385,30 +1680,80 @@ void Game::tutorialDraw()const
 		Shader::LinearToScreen(renderTexture);
 	}
 
-	Draw2D();
-	Draw2DLightBloomed();
+	if (statusDesc)
+	{
+		//RectF{Scene::Size().x * 0.4,0,Scene::Size().x * 0.75,Scene::Size().y}.draw(Palette::Black);
+	}
+	if (statusDesc)
+	{
+		Rect{ Scene::Size() }.draw(Palette::Black);
+		Rect{ Arg::topRight(Scene::Size().x,30),300,64 }.drawFrame(1.0, Palette::Grey);
+		Rect{ Arg::topLeft(Scene::Size().x - 300,30),skipoverrideCount,64 }.draw(Palette::Grey);
+		FontAsset(U"meiryo")(U"B長押しでスキップ").draw(Scene::Size().x - 286, 50);
+		Terminal::GetInst().StreamTxt();
+	}
+	else
+	{
+		Draw2D();
+		Draw2DLightBloomed();
+	}
 	if (isPaused)
 	{
 		Rect{ Scene::Size() }.draw(ColorF{ 0,0,0,0.8 });
-		SimpleGUI::Slider(U"マウス感度{:.2f}"_fmt(getData().sensi), getData().sensi, 0.0, 5.0, Vec2{ Scene::Center().x - 500,150 }, 500, 400);
-		TextureAsset(U"description")
-			.scaled(0.2, 0.2)
-			.drawAt(Scene::Center() + Vec2{ 0,200 });
+		SimpleGUI::Slider(U"エイム感度{:.2f}"_fmt(getData().sensi), getData().sensi, 0.0, 5.0, Vec2{ Scene::Center().x - 500,150 }, 500, 400);
+		if (pad.isConnected())
+		{
+			TextureAsset(U"controllerDesc")
+				.scaled(0.9, 0.9)
+				.drawAt(Scene::Center() + Vec2{ 0, 150 });
+		}
+		else
+		{
+
+			TextureAsset(U"description")
+				.scaled(0.2, 0.2)
+				.drawAt(Scene::Center() + Vec2{ 0,200 });
+		}
+		
 
 		if (SimpleGUI::ButtonAt(U"タイトルへ戻る", Vec2{ Scene::Center().x,100 }))
 		{
 			//changeScene(GameState::Title);
 		}
 
+
 		FontAsset(U"meiryob")
 			(U"///////////////////////////////////////////////"
 				U"PAUSE"
 				U"///////////////////////////////////////////////")
-			.drawAt(Vec2{ Scene::Center().x,300 }, Palette::Darkorange);
+				.drawAt(Vec2{ Scene::Center().x,300 }, Palette::Darkorange);
 
+		if (pad.leftThumbX)
+		{
+			Padpos.x += pad.leftThumbX * Scene::DeltaTime() * 500;
+		}
+		if (pad.leftThumbY)
+		{
+			Padpos.y -= pad.leftThumbY * Scene::DeltaTime() * 500;
+		}
+		if (pad.buttonLB.down())
+		{
+			getData().sensi -= 0.1;
+		}
+		if (pad.buttonRB.down())
+		{
+			getData().sensi += 0.1;
+		}
+		if (pad.isConnected())
+		{
+			drawCur(Padpos);
+			FontAsset(U"meiryob")(U"L").draw(Vec2{ Scene::Center().x - 500 + 450,170 },Palette::Darkorange);
+			FontAsset(U"meiryob")(U"R").draw(Vec2{ Scene::Center().x - 500 + 500 + 400,170 },Palette::Darkorange);
+		}
 
 		return;//本来ここでReturnすべきでないがライトブルームを消すためにリターンする
 	}
+
 
 	{
 		// ガウスぼかし用テクスチャにもう一度シーンを描く
@@ -1416,7 +1761,14 @@ void Game::tutorialDraw()const
 		{
 			const ScopedRenderTarget2D target2{ gaussianA1.clear(Palette::Black) };
 			const ScopedRenderStates2D blend2{ BlendState::Additive };
-			Draw2DLightBloomed();
+			if (statusDesc)
+			{
+				Terminal::GetInst().StreamTxt();
+			}
+			else
+			{
+				Draw2DLightBloomed();
+			}
 		}
 
 		// オリジナルサイズのガウスぼかし (A1)

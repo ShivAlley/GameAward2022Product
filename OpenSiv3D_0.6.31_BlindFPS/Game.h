@@ -48,6 +48,16 @@ private:
 	bool isPaused = false;
 	bool isGoal = false;
 	bool callonce = true;
+	bool isRT = false;
+	bool canPlay = false;
+	bool endingExplain = true;
+	int32 skipoverrideCount = 0;
+	mutable Vec2 Padpos = Scene::Center();
+	void drawCur(Vec2 pos) const
+	{
+		Circle(Arg::center(pos), 50).drawFrame(3.0, Palette::Royalblue);
+		Shape2D::Plus(70, 4, pos).draw(Palette::Royalblue);
+	}
 	
 	Stopwatch deadProtocol{ StartImmediately::No };
 	enum class Logging
@@ -66,8 +76,14 @@ private:
 		DeadProtocol,
 		Tutorial,
 		Tutorial2,
+		TutorialDesc,
+		TutorialDescCaution,
 		startCaution,
 		startCaution2,
+		ending,
+		ending2,
+		ending3,
+		ending4,
 	};
 	mutable Stopwatch walltimer{StartImmediately::Yes};
 	class Terminal
@@ -185,16 +201,17 @@ private:
 		Enemy(char)
 			: m_collider(initpos, radius)
 		{}
-		Enemy(Vec3 pos) : m_collider(pos,radius)
-		{}
 		Vec3 initpos = { 0,2,50 };
 #endif // _DEBUG
+		Enemy(Vec3 pos) : m_collider(pos,radius)
+		{}
 		//Sphere collider;
 		virtual void Move(Player& player) = 0;
 		virtual void PlayNoticeSound() = 0;
 		virtual const double GetVelocity()const = 0;
 		virtual const int32 GetAtkRange()const = 0;
 		virtual const int32 GetAtk()const = 0;
+		static inline bool canplay = false;
 		void foundPlayer() {
 		//isNoticeがトグルするときだけ音を鳴らす
 			if (isNotice == false)
@@ -202,6 +219,7 @@ private:
 				PlayNoticeSound();
 				Terminal::GetInst().command[Logging::DetectEnemy] = U"方位{:.0f} | 距離{:.0f}に敵を感知"_fmt(ToDegrees(GetAngleDiffs()),GetDistanceToPlayer().value());
 				Terminal::GetInst().txtIndex.push_back(Logging::DetectEnemy);
+				AudioAsset(U"v感知").playOneShot();
 			}
 			isNotice = true;
 			noticeTimer().reset();
@@ -238,7 +256,7 @@ private:
 		const Stopwatch& GetFootStepTimer()const{return m_footStepTimer;}
 	private:
 		
-		static constexpr int32 health = DEV_ONLY_MAGIC_NUM;
+		//static constexpr int32 health = DEV_ONLY_MAGIC_NUM;
 		static constexpr int32 radius = 2;
 		bool isNotice = false;
 		bool isFired = false;
@@ -259,13 +277,14 @@ private:
 	{
 	public:
 		RangeEnemy() = default;
-		RangeEnemy(char) : Enemy('t') {}
+		//RangeEnemy(char) : Enemy('t') {}
 		RangeEnemy(Vec3 pos) : Enemy(pos) {}
 		void Move(Player& player)override;
 		void PlayNoticeSound()override;
 		const double GetVelocity()const override { return velocity; }
 		const int32 GetAtkRange()const override { return atkRange; }
 		const int32 GetAtk()const override { return atk; }
+		
 	private:
 		static constexpr double velocity = 3;
 		static constexpr int32 atkRange = 18;
@@ -276,7 +295,7 @@ private:
 	{
 	public:
 		MeleeEnemy() = default;
-		MeleeEnemy(char) : Enemy('t') {}
+		//MeleeEnemy(char) : Enemy('t') {}
 		MeleeEnemy(Vec3 pos) : Enemy(pos) {}
 
 		void Move(Player& player)override;
@@ -294,7 +313,7 @@ private:
 	{
 	public:
 		TutoEnemy() = default;
-		TutoEnemy(char) : Enemy('t') {}
+		//TutoEnemy(char) : Enemy('t') {}
 		TutoEnemy(Vec3 pos) : Enemy(pos) {}
 		void Move(Player& player)override;
 		void PlayNoticeSound()override{AudioAsset(U"notice").playOneShot(); }
@@ -361,7 +380,12 @@ protected:
 		void tutorialDraw()const;
 		void tutorialErase() { enemys.clear(); }
 		Stopwatch tutorialTimer{ StartImmediately::No };
+		bool statusDesc = true;
+		int32 descState = 0;
+		Stopwatch statusTimer{StartImmediately::Yes};
 		int32 explainState = 0;
+		Stopwatch skipTimer{StartImmediately::No};
+		double skipCount = 0;
 		
 private:
 

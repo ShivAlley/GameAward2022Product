@@ -2,12 +2,16 @@
 Result::Result(const InitData& init)
 	:IScene(init)
 {
-
+	AudioAsset(U"resultBegin").play();
 }
 
 void Result::update()
 {
-	if (videoTexture.posSec() == videoTexture.lengthSec())
+	if (resultTimer.elapsed() > 9s)
+	{
+		AudioAsset(U"getOrb").play();
+	}
+	if (videoTexture.posSec() >= videoTexture.lengthSec())
 	{
 		changeScene(GameState::Title);
 	}

@@ -19,6 +19,12 @@ private:
 	Texture Option{ U"Image/OPTION.png" };
 	Texture Exit{ U"Image/EXIT.png" };
 	Texture mouse{ U"Image/mouse.png" };
+	mutable Vec2 Padpos = Scene::Center();
+	void drawCur(Vec2 pos) const
+	{
+		Circle(Arg::center(pos), 50).drawFrame(3.0,Palette::Royalblue);
+		Shape2D::Plus(70, 4, pos).draw(Palette::Royalblue);
+	}
 protected:
 	int menu = 0;
 	int  option = 0;
